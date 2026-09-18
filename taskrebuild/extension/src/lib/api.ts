@@ -5,9 +5,9 @@ export const fetchApi = async (endpoint: string, options: RequestInit = {}) => {
   
   let token = '';
   
-  // Try localStorage first (popup)
-  if (typeof localStorage !== 'undefined') {
-    const sessionString = localStorage.getItem('supabase-session');
+  // Try localStorage first (popup environment usually has window)
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const sessionString = window.localStorage.getItem('supabase-session');
     if (sessionString) {
       try {
         const session = JSON.parse(sessionString);
