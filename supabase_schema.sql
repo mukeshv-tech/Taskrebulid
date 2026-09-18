@@ -78,3 +78,31 @@ create policy "Users can delete their own resources"
 on public.task_resources
 for delete
 using (auth.uid() = user_id);
+
+create table public.task_activity (
+    id uuid primary key default gen_random_uuid(),
+    task_id uuid not null references public.tasks(id) on delete cascade,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    event_type text not null,
+    url text,
+    title text,
+    tab_id text,
+    window_id text,
+    timestamp timestamptz not null default now(),
+    metadata jsonb
+);
+
+alter table public.task_activity enable row level security;
+
+create policy "Users can view their own activity"
+on public.task_activity for select using (auth.uid() = user_id);
+
+create policy "Users can insert their own activity"
+on public.task_activity for insert with check (auth.uid() = user_id);
+
+create policy "Users can delete their own activity"
+on public.task_activity for delete using (auth.uid() = user_id);
+
+create index idx_task_activity_task_id on public.task_activity(task_id);
+create index idx_task_activity_user_id on public.task_activity(user_id);
+create index idx_task_activity_timestamp on public.task_activity(timestamp desc);
