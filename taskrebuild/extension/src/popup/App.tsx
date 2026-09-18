@@ -4,31 +4,22 @@ import { fetchApi } from '../lib/api';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState<any[]>([]);
   const [newTaskName, setNewTaskName] = useState('');
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        localStorage.setItem('supabase-session', JSON.stringify(session));
-        loadTasks();
-      }
-    });
-
-    supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) {
-        localStorage.setItem('supabase-session', JSON.stringify(session));
-        loadTasks();
-      } else {
-        localStorage.removeItem('supabase-session');
-        setTasks([]);
-      }
-    });
+    // HARDCODED BYPASS FOR TESTING
+    const dummySession = {
+      access_token: 'PASTE_YOUR_USER_JWT_HERE',
+      user: { id: 'dummy-uuid', email: 'test@example.com' }
+    };
+    setSession(dummySession);
+    localStorage.setItem('supabase-session', JSON.stringify(dummySession));
+    
+    // We delay loadTasks slightly so the state sets
+    setTimeout(() => {
+      loadTasks();
+    }, 500);
   }, []);
 
   const loadTasks = async () => {
@@ -39,23 +30,10 @@ const App: React.FC = () => {
       console.error(e);
     }
   };
-
-  const handleSignUp = async () => {
-    setLoading(true);
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) alert(error.message);
-    setLoading(false);
-  };
-
-  const handleSignIn = async () => {
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) alert(error.message);
-    setLoading(false);
-  };
   
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    // Hardcoded out
+    setSession(null);
   };
 
   const handleCreateTask = async () => {
