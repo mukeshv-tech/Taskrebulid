@@ -94,16 +94,9 @@ const App: React.FC = () => {
         </div>
         
         <div className="auth-form">
-          <label>Email:</label>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} />
-          
-          <label>Password:</label>
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} />
-          
-          <div className="auth-buttons">
-            <button onClick={handleSignIn} disabled={loading}>Sign In</button>
-            <button onClick={handleSignUp} disabled={loading}>Create Account</button>
-          </div>
+          <p style={{ fontSize: '13px', color: '#6b7280' }}>
+            <em>Authentication UI temporarily removed.</em>
+          </p>
         </div>
       </div>
     );
