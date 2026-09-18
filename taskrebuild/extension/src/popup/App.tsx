@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchApi, getTaskResources, createTaskResource, deleteTaskResource } from '../lib/api';
+import { fetchApi, getTaskResources, createTaskResource, deleteTaskResource, getTaskActivity } from '../lib/api';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -8,9 +8,14 @@ const App: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<any>(null);
   
   const [resources, setResources] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newUrl, setNewUrl] = useState('');
   const [newTitle, setNewTitle] = useState('');
+
+  // Phase 3 Active Task State
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [activeTaskName, setActiveTaskName] = useState<string | null>(null);
 
   useEffect(() => {
     // HARDCODED BYPASS FOR TESTING
@@ -21,7 +26,14 @@ const App: React.FC = () => {
     setSession(dummySession);
     localStorage.setItem('supabase-session', JSON.stringify(dummySession));
     
-    // We delay loadTasks slightly so the state sets
+    // Load local storage active task if any
+    chrome.storage.local.get(['activeTaskId', 'activeTaskName'], (result) => {
+      if (result.activeTaskId) {
+        setActiveTaskId(result.activeTaskId);
+        setActiveTaskName(result.activeTaskName);
+      }
+    });
+    
     setTimeout(() => {
       loadTasks();
     }, 500);
@@ -30,6 +42,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (selectedTask) {
       loadResources(selectedTask.id);
+      loadActivity(selectedTask.id);
       setShowAddForm(false);
       setNewUrl('');
       setNewTitle('');
@@ -53,9 +66,21 @@ const App: React.FC = () => {
       console.error(e);
     }
   };
+
+  const loadActivity = async (taskId: string) => {
+    try {
+      const data = await getTaskActivity(taskId);
+      setActivities(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
   
   const handleSignOut = async () => {
     setSession(null);
+    chrome.storage.local.remove(['activeTaskId', 'activeTaskName']);
+    setActiveTaskId(null);
+    setActiveTaskName(null);
   };
 
   const handleCreateTask = async () => {
@@ -74,10 +99,15 @@ const App: React.FC = () => {
   };
 
   const handleDeleteTask = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation(); // Prevent opening the task when clicking delete
+    e.stopPropagation(); 
     try {
       await fetchApi(`/api/tasks/${id}`, { method: 'DELETE' });
       if (selectedTask?.id === id) setSelectedTask(null);
+      if (activeTaskId === id) {
+        chrome.storage.local.remove(['activeTaskId', 'activeTaskName']);
+        setActiveTaskId(null);
+        setActiveTaskName(null);
+      }
       loadTasks();
     } catch (e) {
       console.error(e);
@@ -128,17 +158,56 @@ const App: React.FC = () => {
     }
   };
 
+  const toggleTaskActive = (task: any) => {
+    if (activeTaskId === task.id) {
+      // Stop tracking
+      chrome.storage.local.remove(['activeTaskId', 'activeTaskName']);
+      setActiveTaskId(null);
+      setActiveTaskName(null);
+    } else {
+      // Start tracking
+      chrome.storage.local.set({ activeTaskId: task.id, activeTaskName: task.name });
+      setActiveTaskId(task.id);
+      setActiveTaskName(task.name);
+    }
+  };
+
   if (!session) return null;
 
   if (selectedTask) {
+    const isActive = activeTaskId === selectedTask.id;
     return (
       <div className="popup-container">
         <button className="back-btn" onClick={() => setSelectedTask(null)}>← Back to tasks</button>
         <h2>📁 {selectedTask.name}</h2>
         <p style={{ fontSize: '12px', color: '#6b7280' }}>
-          Created: {new Date(selectedTask.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+          Created: {new Date(selectedTask.created_at).toLocaleDateString('en-US')}
         </p>
         
+        <div style={{ marginBottom: '15px', padding: '10px', background: isActive ? '#ecfdf5' : '#f9fafb', borderRadius: '4px', border: isActive ? '1px solid #10b981' : '1px solid #e5e7eb' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <strong>Status: </strong> 
+              {isActive ? (
+                <span style={{ color: '#10b981' }}>● Active</span>
+              ) : (
+                <span style={{ color: '#6b7280' }}>Inactive</span>
+              )}
+            </div>
+            <button 
+              onClick={() => toggleTaskActive(selectedTask)}
+              style={{ background: isActive ? '#ef4444' : '#10b981', color: 'white' }}
+            >
+              {isActive ? 'Stop Task' : 'Start Task'}
+            </button>
+          </div>
+          <p style={{ fontSize: '11px', marginTop: '5px', color: '#6b7280' }}>
+            {isActive 
+              ? "TaskRebuild is recording browser tab activity for this active task." 
+              : "Browser activity is not being recorded."}
+          </p>
+        </div>
+
         <div className="task-resources">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h4>{resources.length} Resources</h4>
@@ -183,6 +252,24 @@ const App: React.FC = () => {
             </ul>
           )}
         </div>
+
+        <div className="task-activity">
+          <h4>Recent Activity ({activities.length})</h4>
+          {activities.length === 0 ? (
+            <p style={{ fontSize: '12px' }}>No recorded activity yet.</p>
+          ) : (
+            <ul style={{ listStyleType: 'none', padding: 0, maxHeight: '200px', overflowY: 'auto' }}>
+              {activities.map((act) => (
+                <li key={act.id} style={{ marginBottom: '5px', paddingBottom: '5px', borderBottom: '1px solid #eee', fontSize: '11px' }}>
+                  <span style={{ background: '#e5e7eb', padding: '2px 4px', borderRadius: '3px', marginRight: '5px' }}>
+                    {act.event_type}
+                  </span>
+                  {act.title ? <strong>{act.title}</strong> : act.url}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         
         <button className="delete-task-btn" onClick={(e) => handleDeleteTask(e, selectedTask.id)} style={{ marginTop: '20px' }}>Delete Task</button>
       </div>
@@ -194,17 +281,30 @@ const App: React.FC = () => {
       <h1>TaskRebuild</h1>
       <p>Signed in as: <br/><strong>{session.user.email}</strong></p>
       
-      <div className="status-section">
-        <span className="status-label">Status:</span>
-        <span className="status-value connected">Connected</span>
+      <div style={{ padding: '10px', background: activeTaskId ? '#ecfdf5' : '#f9fafb', borderRadius: '4px', border: activeTaskId ? '1px solid #10b981' : '1px solid #e5e7eb', marginBottom: '15px' }}>
+        <h4 style={{ margin: '0 0 5px 0' }}>Current Task</h4>
+        {activeTaskId ? (
+          <div>
+            <span style={{ color: '#10b981', fontWeight: 'bold' }}>● {activeTaskName}</span>
+            <p style={{ fontSize: '11px', margin: '5px 0 0 0', color: '#6b7280' }}>Recording browser tab activity.</p>
+            <button onClick={() => toggleTaskActive({ id: activeTaskId })} style={{ marginTop: '10px', background: '#ef4444', color: 'white', fontSize: '12px' }}>Stop Task</button>
+          </div>
+        ) : (
+          <div>
+            <p style={{ margin: 0, fontSize: '12px' }}>No active task. Select a task to begin tracking.</p>
+          </div>
+        )}
       </div>
       
       <div className="tasks-section">
         <h3>My Tasks</h3>
         <ul className="task-list">
           {tasks.map(t => (
-            <li key={t.id} onClick={() => setSelectedTask(t)} style={{ cursor: 'pointer' }}>
-              <span>📁 {t.name}</span>
+            <li key={t.id} onClick={() => setSelectedTask(t)} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>
+                📁 {t.name}
+                {t.id === activeTaskId && <span style={{ marginLeft: '5px', color: '#10b981', fontSize: '10px' }}>●</span>}
+              </span>
               <button onClick={(e) => handleDeleteTask(e, t.id)}>x</button>
             </li>
           ))}
