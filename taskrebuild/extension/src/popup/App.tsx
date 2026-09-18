@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { fetchApi } from '../lib/api';
+import { Provider } from '@supabase/supabase-js';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -53,6 +54,66 @@ const App: React.FC = () => {
     if (error) alert(error.message);
     setLoading(false);
   };
+  
+  const handleOAuthSignIn = async (provider: Provider) => {
+    setLoading(true);
+    try {
+      // 1. Get the extension's unique redirect URL
+      const redirectUrl = chrome.identity.getRedirectURL();
+      
+      // 2. Ask Supabase for the OAuth URL (do not redirect automatically)
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.url) throw new Error('No OAuth URL returned');
+
+      // 3. Launch Chrome's secure web auth flow
+      chrome.identity.launchWebAuthFlow(
+        {
+          url: data.url,
+          interactive: true,
+        },
+        async (responseUrl: string | undefined) => {
+          if (chrome.runtime.lastError || !responseUrl) {
+            console.error(chrome.runtime.lastError);
+            setLoading(false);
+            return;
+          }
+
+          // 4. Parse the tokens from the response URL hash
+          const url = new URL(responseUrl);
+          const hashParams = new URLSearchParams(url.hash.substring(1));
+          const access_token = hashParams.get('access_token');
+          const refresh_token = hashParams.get('refresh_token');
+
+          if (access_token && refresh_token) {
+            // 5. Tell Supabase we logged in!
+            const { error: sessionError } = await supabase.auth.setSession({
+              access_token,
+              refresh_token,
+            });
+            if (sessionError) {
+              console.error('Session Error:', sessionError);
+              alert(sessionError.message);
+            }
+          } else {
+            console.error('No tokens found in response', responseUrl);
+          }
+          setLoading(false);
+        }
+      );
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message);
+      setLoading(false);
+    }
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -94,6 +155,12 @@ const App: React.FC = () => {
         </div>
         
         <div className="auth-form">
+          <button className="oauth-btn" onClick={() => handleOAuthSignIn('google')} disabled={loading}>
+            Sign in with Google
+          </button>
+          
+          <div className="divider"><span>OR</span></div>
+          
           <label>Email:</label>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} />
           
