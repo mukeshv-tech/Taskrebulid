@@ -1,2 +1,1 @@
 # Taskrebulid
-<iframe src="https://happystingray1681.grafana.net/d-solo/d402d94e-da48-48e4-ac52-53026b96a000/supabase-project?from=1789726308262&to=1789728108262&timezone=UTC&var-prometheus_datasource=grafanacloud-prom&var-job=integrations%2Fsupabase%2F3594390-metrics-endpoint-partner-myrpgiadvgvvujxvaaph&var-project=myrpgiadvgvvujxvaaph&var-diskdevices=%5Ba-z%5D%2B%7Cnvme%5B0-9%5D%2Bn%5B0-9%5D%2B%7Cmmcblk%5B0-9%5D%2B&var-supabase_identifier=myrpgiadvgvvujxvaaph&refresh=5s&orgId=1&panelId=panel-21" width="450" height="200" frameborder="0"></iframe>
