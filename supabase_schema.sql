@@ -45,3 +45,36 @@ create policy "Users can delete their own tasks"
 on public.tasks
 for delete
 using (auth.uid() = user_id);
+
+create table public.task_resources (
+    id uuid primary key default gen_random_uuid(),
+    task_id uuid not null references public.tasks(id) on delete cascade,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    url text not null,
+    title text,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+alter table public.task_resources enable row level security;
+
+create policy "Users can view their own resources"
+on public.task_resources
+for select
+using (auth.uid() = user_id);
+
+create policy "Users can create their own resources"
+on public.task_resources
+for insert
+with check (auth.uid() = user_id);
+
+create policy "Users can update their own resources"
+on public.task_resources
+for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+create policy "Users can delete their own resources"
+on public.task_resources
+for delete
+using (auth.uid() = user_id);

@@ -28,3 +28,11 @@ export const fetchApi = async (endpoint: string, options: RequestInit = {}) => {
   
   return res.json();
 };
+
+export const getTasks = () => fetchApi('/api/tasks');
+export const createTask = (name: string) => fetchApi('/api/tasks', { method: 'POST', body: JSON.stringify({ name }) });
+export const deleteTask = (taskId: string) => fetchApi(`/api/tasks/${taskId}`, { method: 'DELETE' });
+
+export const getTaskResources = (taskId: string) => fetchApi(`/api/tasks/${taskId}/resources`);
+export const createTaskResource = (taskId: string, resource: { url: string, title?: string }) => fetchApi(`/api/tasks/${taskId}/resources`, { method: 'POST', body: JSON.stringify(resource) });
+export const deleteTaskResource = (taskId: string, resourceId: string) => fetchApi(`/api/tasks/${taskId}/resources/${resourceId}`, { method: 'DELETE' });
