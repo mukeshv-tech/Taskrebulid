@@ -6,6 +6,7 @@ const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
   const [newTaskName, setNewTaskName] = useState('');
+  const [selectedTask, setSelectedTask] = useState<any>(null);
 
   useEffect(() => {
     // HARDCODED BYPASS FOR TESTING
@@ -51,9 +52,11 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDeleteTask = async (id: string) => {
+  const handleDeleteTask = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation(); // Prevent opening the task when clicking delete
     try {
       await fetchApi(`/api/tasks/${id}`, { method: 'DELETE' });
+      if (selectedTask?.id === id) setSelectedTask(null);
       loadTasks();
     } catch (e) {
       console.error(e);
@@ -80,6 +83,29 @@ const App: React.FC = () => {
     );
   }
 
+  if (selectedTask) {
+    return (
+      <div className="popup-container">
+        <button className="back-btn" onClick={() => setSelectedTask(null)}>← Back to tasks</button>
+        <h2>📁 {selectedTask.name}</h2>
+        <p style={{ fontSize: '12px', color: '#6b7280' }}>
+          Created: {new Date(selectedTask.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+        </p>
+        
+        <div className="task-resources">
+          <h4>Resources:</h4>
+          <p>None yet.</p>
+        </div>
+        
+        <div className="task-activity-note">
+          <p><em>This task has no captured browser activity yet.</em></p>
+        </div>
+        
+        <button className="delete-task-btn" onClick={(e) => handleDeleteTask(e, selectedTask.id)}>Delete Task</button>
+      </div>
+    );
+  }
+
   return (
     <div className="popup-container">
       <h1>TaskRebuild</h1>
@@ -91,12 +117,12 @@ const App: React.FC = () => {
       </div>
       
       <div className="tasks-section">
-        <h3>Your Tasks</h3>
+        <h3>My Tasks</h3>
         <ul className="task-list">
           {tasks.map(t => (
-            <li key={t.id}>
-              {t.name}
-              <button onClick={() => handleDeleteTask(t.id)}>x</button>
+            <li key={t.id} onClick={() => setSelectedTask(t)} style={{ cursor: 'pointer' }}>
+              <span>📁 {t.name}</span>
+              <button onClick={(e) => handleDeleteTask(e, t.id)}>x</button>
             </li>
           ))}
         </ul>
