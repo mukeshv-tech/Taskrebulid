@@ -3,15 +3,32 @@ export const getApiBaseUrl = () => import.meta.env.VITE_API_BASE_URL || 'http://
 export const fetchApi = async (endpoint: string, options: RequestInit = {}) => {
   const url = `${getApiBaseUrl()}${endpoint}`;
   
-  // Get token from local storage (set by Supabase auth in popup)
-  const sessionString = localStorage.getItem('supabase-session');
   let token = '';
-  if (sessionString) {
-    try {
-      const session = JSON.parse(sessionString);
-      token = session?.access_token || '';
-    } catch (e) {
-      console.error('Error parsing session', e);
+  
+  // Try localStorage first (popup)
+  if (typeof localStorage !== 'undefined') {
+    const sessionString = localStorage.getItem('supabase-session');
+    if (sessionString) {
+      try {
+        const session = JSON.parse(sessionString);
+        token = session?.access_token || '';
+      } catch (e) {
+        console.error('Error parsing session', e);
+      }
+    }
+  } else if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+    // Fallback to chrome.storage.local (background script)
+    const result = await new Promise<any>((resolve) => {
+      chrome.storage.local.get(['supabase-session'], resolve);
+    });
+    const sessionString = result['supabase-session'];
+    if (sessionString) {
+      try {
+        const session = JSON.parse(sessionString);
+        token = session?.access_token || '';
+      } catch (e) {
+        console.error('Error parsing session from chrome.storage', e);
+      }
     }
   }
 

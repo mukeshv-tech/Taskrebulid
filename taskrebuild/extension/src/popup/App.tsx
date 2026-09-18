@@ -26,6 +26,11 @@ const App: React.FC = () => {
     setSession(dummySession);
     localStorage.setItem('supabase-session', JSON.stringify(dummySession));
     
+    // Also save for background script
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ 'supabase-session': JSON.stringify(dummySession) });
+    }
+    
     // Load local storage active task if any
     chrome.storage.local.get(['activeTaskId', 'activeTaskName'], (result) => {
       if (result.activeTaskId) {
