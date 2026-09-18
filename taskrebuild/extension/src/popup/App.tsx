@@ -11,7 +11,7 @@ const App: React.FC = () => {
     // HARDCODED BYPASS FOR TESTING
     const dummySession = {
       access_token: 'PASTE_YOUR_USER_JWT_HERE',
-      user: { id: 'dummy-uuid', email: 'test@example.com' }
+      user: { id: 'c96c1bfb-3c54-4400-b162-22e2eb5d5220', email: 'mukesh.v@globalschoolsalumni.org' }
     };
     setSession(dummySession);
     localStorage.setItem('supabase-session', JSON.stringify(dummySession));
