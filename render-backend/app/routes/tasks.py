@@ -11,17 +11,23 @@ class TaskCreate(BaseModel):
 
 @router.get("/api/tasks")
 def list_tasks(user = Depends(get_current_user)):
-    supabase = get_supabase()
-    result = supabase.table("tasks").select("*").eq("user_id", user.id).execute()
-    return result.data
+    try:
+        supabase = get_supabase()
+        result = supabase.table("tasks").select("*").eq("user_id", user.id).execute()
+        return result.data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Get tasks failed: {str(e)}")
 
 @router.post("/api/tasks")
 def create_task(task: TaskCreate, user = Depends(get_current_user)):
-    supabase = get_supabase()
-    result = supabase.table("tasks").insert({"user_id": user.id, "name": task.name}).execute()
-    if len(result.data) > 0:
-        return result.data[0]
-    raise HTTPException(status_code=500, detail="Failed to create task")
+    try:
+        supabase = get_supabase()
+        result = supabase.table("tasks").insert({"user_id": user.id, "name": task.name}).execute()
+        if len(result.data) > 0:
+            return result.data[0]
+        raise HTTPException(status_code=500, detail="Failed to create task: no data returned")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Create task failed: {str(e)}")
 
 @router.delete("/api/tasks/{task_id}")
 def delete_task(task_id: str, user = Depends(get_current_user)):
