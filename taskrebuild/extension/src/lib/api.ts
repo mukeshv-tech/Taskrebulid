@@ -56,3 +56,6 @@ export const deleteTaskResource = (taskId: string, resourceId: string) => fetchA
 
 export const getTaskActivity = (taskId: string) => fetchApi(`/api/tasks/${taskId}/activity`);
 export const recordTaskActivity = (taskId: string, events: any[]) => fetchApi(`/api/tasks/${taskId}/activity`, { method: 'POST', body: JSON.stringify({ events }) });
+
+export const analyzeTask = (taskId: string) => fetchApi(`/api/tasks/${taskId}/ai/analyze`, { method: 'POST' });
+export const getTaskAIAnalyses = (taskId: string) => fetchApi(`/api/tasks/${taskId}/ai/analyses`);

@@ -106,3 +106,31 @@ on public.task_activity for delete using (auth.uid() = user_id);
 create index idx_task_activity_task_id on public.task_activity(task_id);
 create index idx_task_activity_user_id on public.task_activity(user_id);
 create index idx_task_activity_timestamp on public.task_activity(timestamp desc);
+
+create table public.task_ai_analyses (
+    id uuid primary key default gen_random_uuid(),
+    task_id uuid not null references public.tasks(id) on delete cascade,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    analysis_type text not null,
+    model_name text,
+    model_version text,
+    input_activity_count integer,
+    input_resource_count integer,
+    result jsonb not null,
+    created_at timestamptz not null default now()
+);
+
+alter table public.task_ai_analyses enable row level security;
+
+create policy "Users can view their own AI analyses"
+on public.task_ai_analyses for select using (auth.uid() = user_id);
+
+create policy "Users can insert their own AI analyses"
+on public.task_ai_analyses for insert with check (auth.uid() = user_id);
+
+create policy "Users can delete their own AI analyses"
+on public.task_ai_analyses for delete using (auth.uid() = user_id);
+
+create index idx_task_ai_analyses_task_id on public.task_ai_analyses(task_id);
+create index idx_task_ai_analyses_user_id on public.task_ai_analyses(user_id);
+create index idx_task_ai_analyses_created_at on public.task_ai_analyses(created_at desc);

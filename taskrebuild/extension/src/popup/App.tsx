@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchApi, getTaskResources, createTaskResource, deleteTaskResource, getTaskActivity } from '../lib/api';
+import { fetchApi, getTaskResources, createTaskResource, deleteTaskResource, getTaskActivity, analyzeTask, getTaskAIAnalyses } from '../lib/api';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -12,6 +12,11 @@ const App: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newUrl, setNewUrl] = useState('');
   const [newTitle, setNewTitle] = useState('');
+  
+  // Phase 4 AI State
+  const [aiAnalysis, setAiAnalysis] = useState<any>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiError, setAiError] = useState('');
 
   // Phase 3 Active Task State
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
@@ -48,11 +53,27 @@ const App: React.FC = () => {
     if (selectedTask) {
       loadResources(selectedTask.id);
       loadActivity(selectedTask.id);
+      loadAiAnalyses(selectedTask.id);
       setShowAddForm(false);
       setNewUrl('');
       setNewTitle('');
     }
   }, [selectedTask]);
+
+  const loadAiAnalyses = async (taskId: string) => {
+    try {
+      setAiError('');
+      const analyses = await getTaskAIAnalyses(taskId);
+      if (analyses && analyses.length > 0) {
+        setAiAnalysis(analyses[0]); // Load the most recent one
+      } else {
+        setAiAnalysis(null);
+      }
+    } catch (e) {
+      console.error(e);
+      // Don't show error to user just because none exist or api is down initially
+    }
+  };
 
   const loadTasks = async () => {
     try {
@@ -139,6 +160,21 @@ const App: React.FC = () => {
       loadResources(selectedTask.id);
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleAnalyzeTask = async () => {
+    if (!selectedTask || isAnalyzing) return;
+    setIsAnalyzing(true);
+    setAiError('');
+    try {
+      const result = await analyzeTask(selectedTask.id);
+      setAiAnalysis(result);
+    } catch (e: any) {
+      console.error(e);
+      setAiError('AI analysis is temporarily unavailable.');
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -273,6 +309,56 @@ const App: React.FC = () => {
                 </li>
               ))}
             </ul>
+          )}
+        </div>
+        
+        <div className="task-ai-analysis" style={{ marginTop: '20px', padding: '15px', background: '#f5f3ff', borderRadius: '4px', border: '1px solid #ddd6fe' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h4 style={{ margin: 0, color: '#4c1d95' }}>AI Analysis</h4>
+            <button 
+              onClick={handleAnalyzeTask} 
+              disabled={isAnalyzing}
+              style={{ background: '#8b5cf6', color: 'white' }}
+            >
+              {isAnalyzing ? 'Analyzing task...' : 'Analyze Task'}
+            </button>
+          </div>
+          
+          {aiError && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '10px' }}>{aiError}</p>}
+          
+          {aiAnalysis && aiAnalysis.result && (
+            <div style={{ marginTop: '15px', fontSize: '12px' }}>
+              <span style={{ background: '#ddd6fe', color: '#4c1d95', padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 'bold' }}>AI-generated</span>
+              <p style={{ fontStyle: 'italic', marginTop: '10px' }}>"{aiAnalysis.result.task_summary}"</p>
+              
+              <h5 style={{ margin: '10px 0 5px 0' }}>Topics</h5>
+              <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
+                {aiAnalysis.result.topics?.map((t: any, i: number) => (
+                  <li key={i}>{t.name} (Confidence: {t.confidence})</li>
+                ))}
+              </ul>
+              
+              <h5 style={{ margin: '10px 0 5px 0' }}>Resource Analysis</h5>
+              <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
+                {aiAnalysis.result.resource_analysis?.map((r: any, i: number) => {
+                  const res = resources.find(rx => rx.id === r.resource_id);
+                  return (
+                    <li key={i}>
+                      <strong>{res ? res.title || res.url : r.resource_id}</strong> - Relevance: {r.relevance}
+                      <br/>
+                      <span style={{ color: '#6b7280' }}>{r.reason}</span>
+                    </li>
+                  )
+                })}
+              </ul>
+              
+              <h5 style={{ margin: '10px 0 5px 0' }}>Suggested Next Steps</h5>
+              <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
+                {aiAnalysis.result.suggested_next_steps?.map((step: string, i: number) => (
+                  <li key={i}>{step}</li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
         
