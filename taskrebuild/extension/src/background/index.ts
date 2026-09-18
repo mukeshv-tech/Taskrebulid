@@ -78,10 +78,8 @@ function handleEvent(eventType: string, tab: chrome.tabs.Tab) {
   
   eventBuffer.push(event);
   
-  // Also flush immediately if buffer gets too large
-  if (eventBuffer.length >= 20) {
-    flushEvents();
-  }
+  // Real-time flush for testing
+  flushEvents();
 }
 
 // Listen to Chrome events
@@ -116,4 +114,5 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
   };
   
   eventBuffer.push(event);
+  flushEvents();
 });
