@@ -63,25 +63,8 @@ const App: React.FC = () => {
     }
   };
 
-  if (!session) {
-    return (
-      <div className="popup-container">
-        <h1>TaskRebuild</h1>
-        <p>Your browser remembers the work, not just the tabs.</p>
-        
-        <div className="status-section">
-          <span className="status-label">Status:</span>
-          <span className="status-value">Signed out</span>
-        </div>
-        
-        <div className="auth-form">
-          <p style={{ fontSize: '13px', color: '#6b7280' }}>
-            <em>Authentication UI temporarily removed.</em>
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Wait for dummy session to initialize
+  if (!session) return null;
 
   if (selectedTask) {
     return (
