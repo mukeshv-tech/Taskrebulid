@@ -31,8 +31,8 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 
 function startFlushing() {
   if (!flushInterval) {
-    // Flush every 30 seconds
-    flushInterval = setInterval(flushEvents, 30000);
+    // Flush every 20 seconds
+    flushInterval = setInterval(flushEvents, 20000);
   }
 }
 
