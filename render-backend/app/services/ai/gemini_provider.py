@@ -7,7 +7,7 @@ from .schemas import AIAnalysisInput, AIAnalysisResult
 logger = logging.getLogger(__name__)
 
 class GeminiProvider(AIProvider):
-    def __init__(self, api_key: str, model_name: str = "gemini-1.5-flash"):
+    def __init__(self, api_key: str, model_name: str = "gemini-3.6-flash"):
         self.api_key = api_key
         self.model_name = model_name
         if self.api_key:
