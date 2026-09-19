@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchApi, getTaskResources, createTaskResource, deleteTaskResource, getTaskActivity, analyzeTask, getTaskAIAnalyses } from '../lib/api';
+import { fetchApi, getTaskResources, createTaskResource, deleteTaskResource, getTaskActivity, analyzeTask, getTaskAIAnalyses, deleteTaskActivity, deleteTaskAIAnalysis } from '../lib/api';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -178,6 +178,24 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDeleteActivity = async (activityId: string) => {
+    try {
+      await deleteTaskActivity(selectedTask.id, activityId);
+      loadActivity(selectedTask.id);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteAnalysis = async (analysisId: string) => {
+    try {
+      await deleteTaskAIAnalysis(selectedTask.id, analysisId);
+      loadAiAnalyses(selectedTask.id);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleAddCurrentTab = async () => {
     if (!chrome || !chrome.tabs) {
       alert("Chrome tabs API not available");
@@ -301,11 +319,14 @@ const App: React.FC = () => {
           ) : (
             <ul style={{ listStyleType: 'none', padding: 0, maxHeight: '200px', overflowY: 'auto' }}>
               {activities.map((act) => (
-                <li key={act.id} style={{ marginBottom: '5px', paddingBottom: '5px', borderBottom: '1px solid #eee', fontSize: '11px' }}>
-                  <span style={{ background: '#e5e7eb', padding: '2px 4px', borderRadius: '3px', marginRight: '5px' }}>
-                    {act.event_type}
-                  </span>
-                  {act.title ? <strong>{act.title}</strong> : act.url}
+                <li key={act.id} style={{ marginBottom: '5px', paddingBottom: '5px', borderBottom: '1px solid #eee', fontSize: '11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <span style={{ background: '#e5e7eb', padding: '2px 4px', borderRadius: '3px', marginRight: '5px' }}>
+                      {act.event_type}
+                    </span>
+                    {act.title ? <strong>{act.title}</strong> : act.url}
+                  </div>
+                  <button onClick={() => handleDeleteActivity(act.id)} style={{ padding: '2px 5px', fontSize: '10px' }}>x</button>
                 </li>
               ))}
             </ul>
@@ -330,7 +351,10 @@ const App: React.FC = () => {
           
           {aiAnalysis && aiAnalysis.result && (
             <div style={{ marginTop: '15px', fontSize: '12px' }}>
-              <span style={{ background: '#ddd6fe', color: '#4c1d95', padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 'bold' }}>AI-generated</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ background: '#ddd6fe', color: '#4c1d95', padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 'bold' }}>AI-generated</span>
+                <button onClick={() => handleDeleteAnalysis(aiAnalysis.id)} style={{ padding: '2px 5px', fontSize: '10px', background: 'transparent', color: '#ef4444', border: '1px solid #ef4444' }}>Delete Analysis</button>
+              </div>
               <p style={{ fontStyle: 'italic', marginTop: '10px' }}>"{aiAnalysis.result.task_summary}"</p>
               
               <h5 style={{ margin: '10px 0 5px 0' }}>Topics</h5>
