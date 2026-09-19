@@ -10,26 +10,46 @@ logger = logging.getLogger(__name__)
 
 class AIService:
     def __init__(self):
-        self.provider = self._init_provider()
+        self.providers = {}
+        self.placeholder = PlaceholderAIProvider()
+        self._init_providers()
 
-    def _init_provider(self) -> AIProvider:
-        if not settings.AI_ENABLED:
-            return PlaceholderAIProvider()
-        if settings.AI_PROVIDER == "gemini":
-            from .gemini_provider import GeminiProvider
-            return GeminiProvider(api_key=settings.GEMINI_API_KEY, model_name=settings.MODEL_NAME)
-        if settings.AI_PROVIDER == "local":
-            return LocalModelProvider(settings.MODEL_NAME, settings.MODEL_PATH)
-        return PlaceholderAIProvider()
+    def _init_providers(self):
+        # Initialize Gemini if configured
+        if settings.GEMINI_API_KEY:
+            try:
+                from .gemini_provider import GeminiProvider
+                self.providers["gemini"] = GeminiProvider(api_key=settings.GEMINI_API_KEY, model_name=settings.MODEL_NAME)
+                logger.info("Gemini provider initialized.")
+            except Exception as e:
+                logger.error(f"Failed to init Gemini provider: {e}")
 
-    async def analyze_task(self, input_data: AIAnalysisInput) -> AIAnalysisResult:
+        # Initialize Local if configured
+        if settings.MODEL_PATH:
+            try:
+                from .local_model import LocalModelProvider
+                self.providers["local"] = LocalModelProvider(settings.MODEL_NAME, settings.MODEL_PATH)
+                logger.info("Local provider initialized.")
+            except Exception as e:
+                logger.error(f"Failed to init Local provider: {e}")
+
+    async def analyze_task(self, input_data: AIAnalysisInput, provider_choice: str = None) -> AIAnalysisResult:
         if not settings.AI_ENABLED:
             raise HTTPException(status_code=503, detail="AI analysis is temporarily unavailable or disabled.")
+        
+        # Use requested provider, fallback to default in settings, or placeholder
+        choice = provider_choice or settings.AI_PROVIDER
+        provider = self.providers.get(choice)
+        
+        if not provider:
+            logger.warning(f"Provider '{choice}' not available. Using placeholder.")
+            provider = self.placeholder
+
         try:
-            result = await self.provider.analyze_task(input_data)
+            result = await provider.analyze_task(input_data)
             return result
         except Exception as e:
             logger.error(f"AI analysis failed: {e}")
-            raise HTTPException(status_code=500, detail="AI analysis failed.")
+            raise HTTPException(status_code=500, detail=f"AI analysis failed: {e}")
 
 ai_service = AIService()

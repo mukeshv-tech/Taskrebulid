@@ -9,7 +9,7 @@ from app.services.ai.schemas import AIAnalysisInput, TaskResourceInput, TaskActi
 router = APIRouter()
 
 @router.post("/api/tasks/{task_id}/ai/analyze")
-async def analyze_task(task_id: str, user = Depends(get_current_user)):
+async def analyze_task(task_id: str, provider: str = None, user = Depends(get_current_user)):
     supabase = get_supabase()
     
     # Verify ownership
@@ -36,7 +36,7 @@ async def analyze_task(task_id: str, user = Depends(get_current_user)):
     )
     
     # Run analysis
-    result = await ai_service.analyze_task(input_data)
+    result = await ai_service.analyze_task(input_data, provider_choice=provider)
     
     # Store result
     analysis_data = {
