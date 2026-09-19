@@ -2,7 +2,6 @@ import logging
 from fastapi import HTTPException
 from app.config import settings
 from .interface import AIProvider
-from .local_model import LocalModelProvider
 from .placeholder import PlaceholderAIProvider
 from .schemas import AIAnalysisInput, AIAnalysisResult
 
