@@ -198,9 +198,9 @@ const App: React.FC = () => {
     }
   };
 
-  const handleDeleteAnalysis = async (analysisId: string) => {
+  const handleDeleteAnalysis = async () => {
     try {
-      await deleteTaskAIAnalysis(selectedTask.id, analysisId);
+      await deleteTaskAIAnalysis(selectedTask.id);
       loadAiAnalyses(selectedTask.id);
     } catch (e) {
       console.error(e);
@@ -369,7 +369,7 @@ const App: React.FC = () => {
             <div style={{ marginTop: '15px', fontSize: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ background: '#ddd6fe', color: '#4c1d95', padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 'bold' }}>AI-generated</span>
-                <button onClick={() => handleDeleteAnalysis(aiAnalysis.id)} style={{ padding: '2px 5px', fontSize: '10px', background: 'transparent', color: '#ef4444', border: '1px solid #ef4444' }}>Delete Analysis</button>
+                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteAnalysis(); }} style={{ padding: '2px 5px', fontSize: '10px', background: 'transparent', color: '#ef4444', border: '1px solid #ef4444' }}>Delete Analysis</button>
               </div>
               <p style={{ fontStyle: 'italic', marginTop: '10px' }}>"{aiAnalysis.result.task_summary}"</p>
               

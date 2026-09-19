@@ -67,6 +67,18 @@ def list_analyses(task_id: str, user = Depends(get_current_user)):
     res = supabase.table("task_ai_analyses").select("*").eq("task_id", task_id).order("created_at", desc=True).execute()
     return res.data
 
+@router.delete("/api/tasks/{task_id}/ai/analyses")
+def clear_analyses(task_id: str, user = Depends(get_current_user)):
+    supabase = get_supabase()
+    
+    # Verify ownership
+    task_res = supabase.table("tasks").select("id").eq("id", task_id).eq("user_id", user.id).execute()
+    if not task_res.data:
+        raise HTTPException(status_code=403, detail="Task not found or not owned by user")
+        
+    result = supabase.table("task_ai_analyses").delete().eq("task_id", task_id).eq("user_id", user.id).execute()
+    return {"status": "success", "deleted_count": len(result.data)}
+
 @router.delete("/api/tasks/{task_id}/ai/analyses/{analysis_id}")
 def delete_analysis(task_id: str, analysis_id: str, user = Depends(get_current_user)):
     supabase = get_supabase()
