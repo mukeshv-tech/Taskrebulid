@@ -64,4 +64,4 @@ export const analyzeTask = (taskId: string) => {
   return fetchApi(url, { method: 'POST' });
 };
 export const getTaskAIAnalyses = (taskId: string) => fetchApi(`/api/tasks/${taskId}/ai/analyses`);
-export const deleteTaskAIAnalysis = (taskId: string, analysisId: string) => fetchApi(`/api/tasks/${taskId}/ai/analyses/${analysisId}`, { method: 'DELETE' });
+export const deleteTaskAIAnalysis = (taskId: string) => fetchApi(`/api/tasks/${taskId}/ai/analyses`, { method: 'DELETE' });
