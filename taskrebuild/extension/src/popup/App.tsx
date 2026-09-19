@@ -17,6 +17,7 @@ const App: React.FC = () => {
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiError, setAiError] = useState('');
+  const [aiProvider, setAiProvider] = useState<string>('gemini');
 
   // Phase 3 Active Task State
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
@@ -168,7 +169,7 @@ const App: React.FC = () => {
     setIsAnalyzing(true);
     setAiError('');
     try {
-      const result = await analyzeTask(selectedTask.id);
+      const result = await analyzeTask(selectedTask.id, aiProvider);
       setAiAnalysis(result);
     } catch (e: any) {
       console.error(e);
@@ -315,13 +316,23 @@ const App: React.FC = () => {
         <div className="task-ai-analysis" style={{ marginTop: '20px', padding: '15px', background: '#f5f3ff', borderRadius: '4px', border: '1px solid #ddd6fe' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h4 style={{ margin: 0, color: '#4c1d95' }}>AI Analysis</h4>
-            <button 
-              onClick={handleAnalyzeTask} 
-              disabled={isAnalyzing}
-              style={{ background: '#8b5cf6', color: 'white' }}
-            >
-              {isAnalyzing ? 'Analyzing task...' : 'Analyze Task'}
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <select 
+                value={aiProvider} 
+                onChange={e => setAiProvider(e.target.value)}
+                style={{ padding: '4px', borderRadius: '4px', border: '1px solid #c4b5fd', fontSize: '12px' }}
+              >
+                <option value="gemini">Gemini API</option>
+                <option value="local">Local CPU Model</option>
+              </select>
+              <button 
+                onClick={handleAnalyzeTask} 
+                disabled={isAnalyzing}
+                style={{ background: '#8b5cf6', color: 'white' }}
+              >
+                {isAnalyzing ? 'Analyzing...' : 'Analyze Task'}
+              </button>
+            </div>
           </div>
           
           {aiError && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '10px' }}>{aiError}</p>}
