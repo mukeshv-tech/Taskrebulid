@@ -24,26 +24,11 @@ class AIService:
             except Exception as e:
                 logger.error(f"Failed to init Gemini provider: {e}")
 
-        # Initialize Local if configured
-        if settings.MODEL_PATH:
-            try:
-                from .local_model import LocalModelProvider
-                self.providers["local"] = LocalModelProvider(settings.MODEL_NAME, settings.MODEL_PATH)
-                logger.info("Local provider initialized.")
-            except Exception as e:
-                logger.error(f"Failed to init Local provider: {e}")
-
-    async def analyze_task(self, input_data: AIAnalysisInput, provider_choice: str = None) -> AIAnalysisResult:
+    async def analyze_task(self, input_data: AIAnalysisInput) -> AIAnalysisResult:
         if not settings.AI_ENABLED:
             raise HTTPException(status_code=503, detail="AI analysis is temporarily unavailable or disabled.")
         
-        # Use requested provider, fallback to default in settings, or placeholder
-        choice = provider_choice or settings.AI_PROVIDER
-        provider = self.providers.get(choice)
-        
-        if not provider:
-            logger.warning(f"Provider '{choice}' not available. Using placeholder.")
-            provider = self.placeholder
+        provider = self.providers.get(settings.AI_PROVIDER, self.placeholder)
 
         try:
             result = await provider.analyze_task(input_data)

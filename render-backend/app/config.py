@@ -9,7 +9,6 @@ class Settings(BaseSettings):
     AI_ENABLED: bool = os.getenv("AI_ENABLED", "false").lower() == "true"
     AI_PROVIDER: str = os.getenv("AI_PROVIDER", "gemini")
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    MODEL_PATH: str = os.getenv("MODEL_PATH", "")
     MODEL_NAME: str = os.getenv("MODEL_NAME", "gemini-3.6-flash")
     AI_MAX_INPUT_TOKENS: int = int(os.getenv("AI_MAX_INPUT_TOKENS", 4096))
     AI_MAX_OUTPUT_TOKENS: int = int(os.getenv("AI_MAX_OUTPUT_TOKENS", 1024))
