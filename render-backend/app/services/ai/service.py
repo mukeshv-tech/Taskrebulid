@@ -1,5 +1,6 @@
 import logging
 from fastapi import HTTPException
+from typing import Any
 from app.config import settings
 from .interface import AIProvider
 from .placeholder import PlaceholderAIProvider
@@ -35,5 +36,18 @@ class AIService:
         except Exception as e:
             logger.error(f"AI analysis failed: {e}")
             raise HTTPException(status_code=500, detail=f"AI analysis failed: {e}")
+
+    async def analyze_graph(self, input_data: AIAnalysisInput) -> Any:
+        if not settings.AI_ENABLED:
+            raise HTTPException(status_code=503, detail="AI analysis is temporarily unavailable or disabled.")
+        
+        provider = self.providers.get(settings.AI_PROVIDER, self.placeholder)
+
+        try:
+            result = await provider.analyze_graph(input_data)
+            return result
+        except Exception as e:
+            logger.error(f"AI graph analysis failed: {e}")
+            raise HTTPException(status_code=500, detail=f"AI graph analysis failed: {e}")
 
 ai_service = AIService()

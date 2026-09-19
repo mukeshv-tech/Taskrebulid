@@ -35,3 +35,24 @@ class AIAnalysisInput(BaseModel):
     task_name: str
     resources: List[TaskResourceInput]
     activity: List[TaskActivityInput]
+
+class GraphNode(BaseModel):
+    label: str = Field(description="Normalized name of the topic, concept, question, or goal.")
+    node_type: str = Field(description="One of: 'topic', 'concept', 'question', 'goal', 'resource'.")
+    description: Optional[str] = Field(description="Brief explanation of this node.")
+    confidence: float = Field(ge=0.0, le=1.0, description="Confidence score from 0.0 to 1.0.")
+
+class GraphEdgeEvidence(BaseModel):
+    resource_id: Optional[str] = Field(description="If evidence comes from a resource, its ID.")
+    reason: str = Field(description="Brief explanation of why this edge exists based strictly on available context.")
+
+class GraphEdge(BaseModel):
+    source_label: str = Field(description="Label of the source node.")
+    target_label: str = Field(description="Label of the target node.")
+    relationship_type: str = Field(description="One of: 'related_to', 'about', 'requires', 'answers', 'part_of', 'references'.")
+    confidence: float = Field(ge=0.0, le=1.0, description="Confidence score from 0.0 to 1.0.")
+    evidence: List[GraphEdgeEvidence] = Field(description="Evidence supporting this edge.")
+
+class AIGraphAnalysisResult(BaseModel):
+    nodes: List[GraphNode]
+    edges: List[GraphEdge]

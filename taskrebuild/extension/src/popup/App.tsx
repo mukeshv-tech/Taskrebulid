@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchApi, getTaskResources, createTaskResource, deleteTaskResource, getTaskActivity, analyzeTask, getTaskAIAnalyses, deleteTaskActivity, deleteTaskAIAnalysis, clearTaskActivity } from '../lib/api';
+import GraphTab from './components/GraphTab';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -403,6 +404,8 @@ const App: React.FC = () => {
             </div>
           )}
         </div>
+        
+        <GraphTab taskId={selectedTask.id} />
         
         <button className="delete-task-btn" onClick={(e) => handleDeleteTask(e, selectedTask.id)} style={{ marginTop: '20px' }}>Delete Task</button>
       </div>
