@@ -52,3 +52,14 @@ def delete_activity(task_id: str, activity_id: str, user_id: str):
         
     result = supabase.table("task_activity").delete().eq("id", activity_id).eq("task_id", task_id).eq("user_id", user_id).execute()
     return result.data
+
+def delete_all_activity(task_id: str, user_id: str):
+    supabase = get_supabase()
+    
+    # Verify task ownership
+    task = supabase.table("tasks").select("id").eq("id", task_id).eq("user_id", user_id).execute()
+    if not task.data:
+        raise ValueError("Task not found or not owned by user")
+        
+    result = supabase.table("task_activity").delete().eq("task_id", task_id).eq("user_id", user_id).execute()
+    return result.data

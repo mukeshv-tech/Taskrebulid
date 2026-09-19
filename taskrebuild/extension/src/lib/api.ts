@@ -57,6 +57,7 @@ export const deleteTaskResource = (taskId: string, resourceId: string) => fetchA
 export const getTaskActivity = (taskId: string) => fetchApi(`/api/tasks/${taskId}/activity`);
 export const recordTaskActivity = (taskId: string, events: any[]) => fetchApi(`/api/tasks/${taskId}/activity`, { method: 'POST', body: JSON.stringify({ events }) });
 export const deleteTaskActivity = (taskId: string, activityId: string) => fetchApi(`/api/tasks/${taskId}/activity/${activityId}`, { method: 'DELETE' });
+export const clearTaskActivity = (taskId: string) => fetchApi(`/api/tasks/${taskId}/activity`, { method: 'DELETE' });
 
 export const analyzeTask = (taskId: string) => {
   const url = `/api/tasks/${taskId}/ai/analyze`;

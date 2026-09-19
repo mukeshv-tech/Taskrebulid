@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchApi, getTaskResources, createTaskResource, deleteTaskResource, getTaskActivity, analyzeTask, getTaskAIAnalyses, deleteTaskActivity, deleteTaskAIAnalysis } from '../lib/api';
+import { fetchApi, getTaskResources, createTaskResource, deleteTaskResource, getTaskActivity, analyzeTask, getTaskAIAnalyses, deleteTaskActivity, deleteTaskAIAnalysis, clearTaskActivity } from '../lib/api';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -187,6 +187,17 @@ const App: React.FC = () => {
     }
   };
 
+  const handleClearAllActivity = async () => {
+    if (window.confirm("Are you sure you want to clear all activity for this task?")) {
+      try {
+        await clearTaskActivity(selectedTask.id);
+        loadActivity(selectedTask.id);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
   const handleDeleteAnalysis = async (analysisId: string) => {
     try {
       await deleteTaskAIAnalysis(selectedTask.id, analysisId);
@@ -313,7 +324,12 @@ const App: React.FC = () => {
         </div>
 
         <div className="task-activity">
-          <h4>Recent Activity ({activities.length})</h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <h4 style={{ margin: 0 }}>Recent Activity ({activities.length})</h4>
+            {activities.length > 0 && (
+              <button onClick={handleClearAllActivity} style={{ fontSize: '10px', padding: '2px 5px', color: '#ef4444', background: 'transparent', border: '1px solid #ef4444' }}>Clear All</button>
+            )}
+          </div>
           {activities.length === 0 ? (
             <p style={{ fontSize: '12px' }}>No recorded activity yet.</p>
           ) : (
