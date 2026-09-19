@@ -49,3 +49,14 @@ def delete_task_activity(task_id: str, activity_id: str, user = Depends(get_curr
         raise HTTPException(status_code=403, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete activity: {str(e)}")
+
+@router.delete("/api/tasks/{task_id}/activity")
+def clear_task_activity(task_id: str, user = Depends(get_current_user)):
+    from app.services.activity_service import delete_all_activity
+    try:
+        delete_all_activity(task_id, user.id)
+        return {"status": "success"}
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to clear activity: {str(e)}")
