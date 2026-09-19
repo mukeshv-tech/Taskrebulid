@@ -134,3 +134,74 @@ on public.task_ai_analyses for delete using (auth.uid() = user_id);
 create index idx_task_ai_analyses_task_id on public.task_ai_analyses(task_id);
 create index idx_task_ai_analyses_user_id on public.task_ai_analyses(user_id);
 create index idx_task_ai_analyses_created_at on public.task_ai_analyses(created_at desc);
+
+-- PHASE 5: Knowledge Graph
+
+create table public.task_nodes (
+    id uuid primary key default gen_random_uuid(),
+    task_id uuid not null references public.tasks(id) on delete cascade,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    node_type text not null,
+    label text not null,
+    description text,
+    is_ai_generated boolean default false,
+    confidence float,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    unique(task_id, label, node_type)
+);
+
+alter table public.task_nodes enable row level security;
+
+create policy "Users can view their own task nodes"
+on public.task_nodes for select using (auth.uid() = user_id);
+
+create policy "Users can insert their own task nodes"
+on public.task_nodes for insert with check (auth.uid() = user_id);
+
+create policy "Users can update their own task nodes"
+on public.task_nodes for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "Users can delete their own task nodes"
+on public.task_nodes for delete using (auth.uid() = user_id);
+
+create index idx_task_nodes_task_id on public.task_nodes(task_id);
+create index idx_task_nodes_user_id on public.task_nodes(user_id);
+create index idx_task_nodes_label on public.task_nodes(label);
+
+
+create table public.task_edges (
+    id uuid primary key default gen_random_uuid(),
+    task_id uuid not null references public.tasks(id) on delete cascade,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    source_node_id uuid not null references public.task_nodes(id) on delete cascade,
+    target_node_id uuid not null references public.task_nodes(id) on delete cascade,
+    relationship_type text not null,
+    is_ai_generated boolean default false,
+    confidence float,
+    evidence jsonb,
+    is_rejected boolean default false,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    unique(task_id, source_node_id, target_node_id, relationship_type)
+);
+
+alter table public.task_edges enable row level security;
+
+create policy "Users can view their own task edges"
+on public.task_edges for select using (auth.uid() = user_id);
+
+create policy "Users can insert their own task edges"
+on public.task_edges for insert with check (auth.uid() = user_id);
+
+create policy "Users can update their own task edges"
+on public.task_edges for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "Users can delete their own task edges"
+on public.task_edges for delete using (auth.uid() = user_id);
+
+create index idx_task_edges_task_id on public.task_edges(task_id);
+create index idx_task_edges_user_id on public.task_edges(user_id);
+create index idx_task_edges_source on public.task_edges(source_node_id);
+create index idx_task_edges_target on public.task_edges(target_node_id);
+

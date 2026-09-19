@@ -1,5 +1,5 @@
 from .interface import AIProvider
-from .schemas import AIAnalysisInput, AIAnalysisResult
+from .schemas import AIAnalysisInput, AIAnalysisResult, AIGraphAnalysisResult
 
 class PlaceholderAIProvider(AIProvider):
     async def analyze_task(self, input_data: AIAnalysisInput) -> AIAnalysisResult:
@@ -9,4 +9,10 @@ class PlaceholderAIProvider(AIProvider):
             resource_analysis=[],
             activity_summary="Placeholder AI: Activity analysis not available.",
             suggested_next_steps=[]
+        )
+
+    async def analyze_graph(self, input_data: AIAnalysisInput) -> AIGraphAnalysisResult:
+        return AIGraphAnalysisResult(
+            nodes=[],
+            edges=[]
         )
