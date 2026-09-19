@@ -314,7 +314,7 @@ const App: React.FC = () => {
                     <div>
                       <strong>{idx + 1}. {res.title || 'Untitled'}</strong>
                       <br />
-                      <a href={res.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '12px', color: '#3b82f6' }}>{res.url}</a>
+                      <a href={res.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '12px', color: '#3b82f6', wordBreak: 'break-all' }}>{res.url}</a>
                     </div>
                     <button onClick={() => handleDeleteResource(res.id)} style={{ alignSelf: 'flex-start' }}>Delete</button>
                   </div>
@@ -341,7 +341,7 @@ const App: React.FC = () => {
                     <span style={{ background: '#e5e7eb', padding: '2px 4px', borderRadius: '3px', marginRight: '5px' }}>
                       {act.event_type}
                     </span>
-                    {act.title ? <strong>{act.title}</strong> : act.url}
+                    {act.title ? <strong>{act.title}</strong> : <span style={{ wordBreak: 'break-all' }}>{act.url}</span>}
                   </div>
                   <button onClick={() => handleDeleteActivity(act.id)} style={{ padding: '2px 5px', fontSize: '10px' }}>x</button>
                 </li>
