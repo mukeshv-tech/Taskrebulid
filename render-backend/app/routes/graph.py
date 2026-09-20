@@ -61,10 +61,10 @@ async def analyze_task_graph(task_id: str, user = Depends(get_current_user)):
     task_name = task_res.data[0]["name"]
     
     # Load bounded subset for AI
-    res_res = supabase.table("task_resources").select("*").eq("task_id", task_id).limit(10).execute()
+    res_res = supabase.table("task_resources").select("*").eq("task_id", task_id).limit(settings.AI_RESOURCE_LIMIT).execute()
     resources = [TaskResourceInput(id=r["id"], url=r["url"], title=r.get("title")) for r in res_res.data]
 
-    act_res = supabase.table("task_activity").select("*").eq("task_id", task_id).order("timestamp", desc=True).limit(20).execute()
+    act_res = supabase.table("task_activity").select("*").eq("task_id", task_id).order("timestamp", desc=True).limit(settings.AI_ACTIVITY_LIMIT).execute()
     activity = [TaskActivityInput(id=a["id"], event_type=a["event_type"], url=a.get("url"), title=a.get("title"), timestamp=a["timestamp"]) for a in act_res.data]
     
     input_data = AIAnalysisInput(

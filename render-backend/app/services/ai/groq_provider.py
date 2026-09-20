@@ -46,7 +46,7 @@ Based ONLY on the provided resources and activity, analyze the task and return a
   ]
 }}
 Do not invent resources. Keep confidence values between 0.0 and 1.0.
-Respond strictly in valid JSON format.
+OUTPUT ONLY VALID JSON. Do not include markdown like ```json.
 """
 
         try:
@@ -54,7 +54,7 @@ Respond strictly in valid JSON format.
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a helpful assistant that outputs JSON."
+                        "content": "You are an API that outputs strictly valid JSON. Never include markdown formatting."
                     },
                     {
                         "role": "user",
@@ -62,11 +62,13 @@ Respond strictly in valid JSON format.
                     }
                 ],
                 model=self.model_name,
-                temperature=0.2,
+                temperature=0.1,
                 response_format={"type": "json_object"},
             )
             
             result_text = response.choices[0].message.content
+            # Cleanup any accidental markdown
+            result_text = result_text.replace("```json", "").replace("```", "").strip()
             result_json = json.loads(result_text)
             
             return AIAnalysisResult(**result_json)
@@ -98,23 +100,23 @@ Extract a structured knowledge graph (nodes and edges) representing the entities
 5. Provide evidence for edges strictly referring to the provided resource IDs or activity context. Return no relationship when evidence is insufficient.
 6. Confidence must be between 0.0 and 1.0 based on the evidence strength.
 
-Output JSON matching this exact structure:
+Output a JSON object matching this exact structure:
 {{
   "nodes": [
-    {{ "label": "String", "node_type": "topic|concept|question|goal|resource", "description": "String", "confidence": 0.95 }}
+    {{ "label": "String", "node_type": "topic", "description": "String", "confidence": 0.95 }}
   ],
   "edges": [
     {{ "source_label": "String", "target_label": "String", "relationship_type": "related_to", "confidence": 0.85, "evidence": [ {{ "resource_id": "String or null", "reason": "String" }} ] }}
   ]
 }}
-Respond strictly in valid JSON format.
+OUTPUT ONLY VALID JSON. Do not include markdown like ```json.
 """
         try:
             response = await self.client.chat.completions.create(
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a knowledge graph extractor that outputs strictly JSON."
+                        "content": "You are a knowledge graph extractor that outputs strictly valid JSON. Never include markdown formatting."
                     },
                     {
                         "role": "user",
@@ -122,11 +124,13 @@ Respond strictly in valid JSON format.
                     }
                 ],
                 model=self.model_name,
-                temperature=0.2,
+                temperature=0.1,
                 response_format={"type": "json_object"},
             )
             
             result_text = response.choices[0].message.content
+            # Cleanup any accidental markdown
+            result_text = result_text.replace("```json", "").replace("```", "").strip()
             result_json = json.loads(result_text)
             
             return AIGraphAnalysisResult(**result_json)
