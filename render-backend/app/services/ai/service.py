@@ -15,14 +15,15 @@ class AIService:
         self._init_providers()
 
     def _init_providers(self):
-        # Initialize Gemini if configured
-        if settings.GEMINI_API_KEY:
+
+        # Initialize Groq if configured
+        if settings.GROQ_API_KEY:
             try:
-                from .gemini_provider import GeminiProvider
-                self.providers["gemini"] = GeminiProvider(api_key=settings.GEMINI_API_KEY, model_name=settings.MODEL_NAME)
-                logger.info("Gemini provider initialized.")
+                from .groq_provider import GroqProvider
+                self.providers["groq"] = GroqProvider(api_key=settings.GROQ_API_KEY, model_name=settings.MODEL_NAME or "llama3-8b-8192")
+                logger.info("Groq provider initialized.")
             except Exception as e:
-                logger.error(f"Failed to init Gemini provider: {e}")
+                logger.error(f"Failed to init Groq provider: {e}")
 
     async def analyze_task(self, input_data: AIAnalysisInput) -> AIAnalysisResult:
         if not settings.AI_ENABLED:

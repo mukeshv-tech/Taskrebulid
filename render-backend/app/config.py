@@ -7,8 +7,8 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
     ALLOWED_ORIGINS: str = os.getenv("ALLOWED_ORIGINS", "*")
     AI_ENABLED: bool = os.getenv("AI_ENABLED", "false").lower() == "true"
-    AI_PROVIDER: str = os.getenv("AI_PROVIDER", "gemini")
-    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    AI_PROVIDER: str = os.getenv("AI_PROVIDER", "groq")
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     MODEL_NAME: str = os.getenv("MODEL_NAME", "")
     AI_MAX_INPUT_TOKENS: int = int(os.getenv("AI_MAX_INPUT_TOKENS", 4096))
     AI_MAX_OUTPUT_TOKENS: int = int(os.getenv("AI_MAX_OUTPUT_TOKENS", 1024))
