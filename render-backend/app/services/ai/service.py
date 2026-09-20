@@ -15,6 +15,14 @@ class AIService:
         self._init_providers()
 
     def _init_providers(self):
+        # Initialize Gemini if configured
+        if settings.GEMINI_API_KEY:
+            try:
+                from .gemini_provider import GeminiProvider
+                self.providers["gemini"] = GeminiProvider(api_key=settings.GEMINI_API_KEY, model_name=settings.MODEL_NAME or "gemini-1.5-flash")
+                logger.info("Gemini provider initialized.")
+            except Exception as e:
+                logger.error(f"Failed to init Gemini provider: {e}")
 
         # Initialize Groq if configured
         if settings.GROQ_API_KEY:
