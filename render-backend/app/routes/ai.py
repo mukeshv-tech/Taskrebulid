@@ -43,7 +43,7 @@ async def analyze_task(task_id: str, user = Depends(get_current_user)):
         "task_id": task_id,
         "user_id": user.id,
         "analysis_type": "full_task_analysis",
-        "model_name": settings.MODEL_NAME,
+        "model_name": settings.GROQ_MODEL_NAME if settings.TASK_AI_PROVIDER == 'groq' else settings.GEMINI_MODEL_NAME,
         "model_version": "1.0",
         "input_activity_count": len(activity),
         "input_resource_count": len(resources),
