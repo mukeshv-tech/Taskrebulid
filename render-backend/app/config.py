@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     AI_ENABLED: bool = os.getenv("AI_ENABLED", "false").lower() == "true"
     AI_PROVIDER: str = os.getenv("AI_PROVIDER", "groq")
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
-    MODEL_NAME: str = os.getenv("MODEL_NAME", "")
+    MODEL_NAME: str = os.getenv("MODEL_NAME", "llama3-70b-8192")
     AI_MAX_INPUT_TOKENS: int = int(os.getenv("AI_MAX_INPUT_TOKENS", 4096))
     AI_MAX_OUTPUT_TOKENS: int = int(os.getenv("AI_MAX_OUTPUT_TOKENS", 1024))
     AI_ACTIVITY_LIMIT: int = int(os.getenv("AI_ACTIVITY_LIMIT", 50))

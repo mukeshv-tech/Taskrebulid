@@ -20,7 +20,7 @@ class AIService:
         if settings.GROQ_API_KEY:
             try:
                 from .groq_provider import GroqProvider
-                self.providers["groq"] = GroqProvider(api_key=settings.GROQ_API_KEY, model_name=settings.MODEL_NAME or "llama3-8b-8192")
+                self.providers["groq"] = GroqProvider(api_key=settings.GROQ_API_KEY, model_name=settings.MODEL_NAME or "llama3-70b-8192")
                 logger.info("Groq provider initialized.")
             except Exception as e:
                 logger.error(f"Failed to init Groq provider: {e}")
