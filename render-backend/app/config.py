@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     GEMINI_MODEL_NAME: str = os.getenv("GEMINI_MODEL_NAME", "gemini-3.6-flash")
     AI_MAX_INPUT_TOKENS: int = int(os.getenv("AI_MAX_INPUT_TOKENS", 4096))
     AI_MAX_OUTPUT_TOKENS: int = int(os.getenv("AI_MAX_OUTPUT_TOKENS", 1024))
-    AI_ACTIVITY_LIMIT: int = int(os.getenv("AI_ACTIVITY_LIMIT", 50))
-    AI_RESOURCE_LIMIT: int = int(os.getenv("AI_RESOURCE_LIMIT", 20))
+    AI_ACTIVITY_LIMIT: int = int(os.getenv("AI_ACTIVITY_LIMIT", 100))
+    AI_RESOURCE_LIMIT: int = int(os.getenv("AI_RESOURCE_LIMIT", 50))
     PORT: int = int(os.getenv("PORT", 8000))
 
     class Config:
