@@ -13,10 +13,10 @@ class ResourceAnalysis(BaseModel):
 
 class AIAnalysisResult(BaseModel):
     task_summary: str
-    topics: List[Topic]
-    resource_analysis: List[ResourceAnalysis]
+    topics: List[Topic] = Field(default_factory=list)
+    resource_analysis: List[ResourceAnalysis] = Field(default_factory=list)
     activity_summary: str
-    suggested_next_steps: List[str]
+    suggested_next_steps: List[str] = Field(default_factory=list)
 
 class TaskActivityInput(BaseModel):
     id: str
@@ -51,8 +51,8 @@ class GraphEdge(BaseModel):
     target_label: str = Field(description="Label of the target node.")
     relationship_type: str = Field(description="One of: 'related_to', 'about', 'requires', 'answers', 'part_of', 'references'.")
     confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="Confidence score from 0.0 to 1.0.")
-    evidence: List[GraphEdgeEvidence] = Field(description="Evidence supporting this edge.")
+    evidence: List[GraphEdgeEvidence] = Field(default_factory=list, description="Evidence supporting this edge.")
 
 class AIGraphAnalysisResult(BaseModel):
-    nodes: List[GraphNode]
-    edges: List[GraphEdge]
+    nodes: List[GraphNode] = Field(default_factory=list)
+    edges: List[GraphEdge] = Field(default_factory=list)
