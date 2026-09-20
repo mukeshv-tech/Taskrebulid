@@ -6,6 +6,13 @@ from .schemas import AIAnalysisInput, AIAnalysisResult, AIGraphAnalysisResult
 
 logger = logging.getLogger(__name__)
 
+def extract_json(text: str) -> str:
+    start = text.find('{')
+    end = text.rfind('}')
+    if start != -1 and end != -1 and end > start:
+        return text[start:end+1]
+    return text
+
 class GroqProvider(AIProvider):
     def __init__(self, api_key: str, model_name: str = "llama3-8b-8192"):
         self.api_key = api_key
@@ -63,12 +70,9 @@ OUTPUT ONLY VALID JSON. Do not include markdown like ```json.
                 ],
                 model=self.model_name,
                 temperature=0.1,
-                response_format={"type": "json_object"},
             )
             
-            result_text = response.choices[0].message.content
-            # Cleanup any accidental markdown
-            result_text = result_text.replace("```json", "").replace("```", "").strip()
+            result_text = extract_json(response.choices[0].message.content)
             result_json = json.loads(result_text)
             
             return AIAnalysisResult(**result_json)
@@ -125,12 +129,9 @@ OUTPUT ONLY VALID JSON. Do not include markdown like ```json.
                 ],
                 model=self.model_name,
                 temperature=0.1,
-                response_format={"type": "json_object"},
             )
             
-            result_text = response.choices[0].message.content
-            # Cleanup any accidental markdown
-            result_text = result_text.replace("```json", "").replace("```", "").strip()
+            result_text = extract_json(response.choices[0].message.content)
             result_json = json.loads(result_text)
             
             return AIGraphAnalysisResult(**result_json)
