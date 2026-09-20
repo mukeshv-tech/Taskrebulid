@@ -6,15 +6,8 @@ from .schemas import AIAnalysisInput, AIAnalysisResult, AIGraphAnalysisResult
 
 logger = logging.getLogger(__name__)
 
-def extract_json(text: str) -> str:
-    start = text.find('{')
-    end = text.rfind('}')
-    if start != -1 and end != -1 and end > start:
-        return text[start:end+1]
-    return text
-
 class GroqProvider(AIProvider):
-    def __init__(self, api_key: str, model_name: str = "llama3-8b-8192"):
+    def __init__(self, api_key: str, model_name: str = "llama3-70b-8192"):
         self.api_key = api_key
         self.model_name = model_name
         if self.api_key:
@@ -27,41 +20,20 @@ class GroqProvider(AIProvider):
         if not self.client:
             raise ValueError("Groq API Key is not configured.")
 
-        # Prepare the prompt
         prompt = f"""
-You are an AI assistant analyzing a user's research task.
+Analyze the following research task and provide insights.
 Task Name: {input_data.task_name}
-
-Resources:
-{json.dumps([r.model_dump() for r in input_data.resources], indent=2)}
-
-Recent Activity:
-{json.dumps([a.model_dump() for a in input_data.activity], indent=2)}
-
-Based ONLY on the provided resources and activity, analyze the task and return a JSON object with the following schema:
-{{
-  "task_summary": "A brief summary of what this task is about based on the data",
-  "topics": [
-    {{ "name": "Topic Name", "confidence": 0.95 }}
-  ],
-  "resource_analysis": [
-    {{ "resource_id": "id from the resource object", "relevance": 0.8, "reason": "why it's relevant" }}
-  ],
-  "activity_summary": "A brief summary of the user's recent actions",
-  "suggested_next_steps": [
-    "Step 1", "Step 2"
-  ]
-}}
-Do not invent resources. Keep confidence values between 0.0 and 1.0.
-OUTPUT ONLY VALID JSON. Do not include markdown like ```json.
+Resources: {json.dumps([r.model_dump() for r in input_data.resources])}
+Recent Activity: {json.dumps([a.model_dump() for a in input_data.activity])}
 """
+        schema_json = json.dumps(AIAnalysisResult.model_json_schema())
 
         try:
             response = await self.client.chat.completions.create(
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an API that outputs strictly valid JSON. Never include markdown formatting."
+                        "content": f"You are a helpful assistant that outputs strictly in JSON. The JSON object must strictly follow this schema: {schema_json}"
                     },
                     {
                         "role": "user",
@@ -70,16 +42,14 @@ OUTPUT ONLY VALID JSON. Do not include markdown like ```json.
                 ],
                 model=self.model_name,
                 temperature=0.1,
+                response_format={"type": "json_object"},
             )
             
             raw_text = response.choices[0].message.content
-            result_text = extract_json(raw_text)
-            try:
-                result_json = json.loads(result_text)
-            except json.JSONDecodeError:
-                raise ValueError(f"Model failed to generate valid JSON. Raw output: {raw_text}")
-            
+            result_json = json.loads(raw_text)
             return AIAnalysisResult(**result_json)
+        except json.JSONDecodeError:
+            raise ValueError(f"Model failed to generate valid JSON. Raw output: {raw_text}")
         except Exception as e:
             logger.error(f"Groq API error: {e}")
             raise
@@ -88,43 +58,25 @@ OUTPUT ONLY VALID JSON. Do not include markdown like ```json.
         if not self.client:
             raise ValueError("Groq API Key is not configured.")
 
-        # Prepare the prompt
         prompt = f"""
-You are an AI assistant analyzing a user's research task to extract a knowledge graph.
-Task Name: {input_data.task_name}
-
-Resources:
-{json.dumps([r.model_dump() for r in input_data.resources], indent=2)}
-
-Recent Activity:
-{json.dumps([a.model_dump() for a in input_data.activity], indent=2)}
-
-INSTRUCTIONS:
 Extract a structured knowledge graph (nodes and edges) representing the entities, concepts, and relationships found in the provided Resources and Activity.
-1. Use only supplied information. Do not invent resources, facts, or URLs.
-2. Deduplicate nodes. E.g., "Machine Learning" and "machine learning" should be a single node. Don't aggressively merge concepts if uncertain.
-3. Node labels must be clear and concise.
-4. Edge relationship types must be one of: "related_to", "about", "requires", "answers", "part_of", "references".
-5. Provide evidence for edges strictly referring to the provided resource IDs or activity context. Return no relationship when evidence is insufficient.
-6. Confidence must be between 0.0 and 1.0 based on the evidence strength.
+Task Name: {input_data.task_name}
+Resources: {json.dumps([r.model_dump() for r in input_data.resources])}
+Recent Activity: {json.dumps([a.model_dump() for a in input_data.activity])}
 
-Output a JSON object matching this exact structure:
-{{
-  "nodes": [
-    {{ "label": "String", "node_type": "topic", "description": "String", "confidence": 0.95 }}
-  ],
-  "edges": [
-    {{ "source_label": "String", "target_label": "String", "relationship_type": "related_to", "confidence": 0.85, "evidence": [ {{ "resource_id": "String or null", "reason": "String" }} ] }}
-  ]
-}}
-OUTPUT ONLY VALID JSON. Do not include markdown like ```json.
+1. Use only supplied information.
+2. Deduplicate nodes.
+3. Edge relationship types must be one of: "related_to", "about", "requires", "answers", "part_of", "references".
+4. Confidence must be between 0.0 and 1.0.
 """
+        schema_json = json.dumps(AIGraphAnalysisResult.model_json_schema())
+
         try:
             response = await self.client.chat.completions.create(
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a knowledge graph extractor that outputs strictly valid JSON. Never include markdown formatting."
+                        "content": f"You are a knowledge graph extractor that outputs strictly in JSON. The JSON object must strictly follow this schema: {schema_json}"
                     },
                     {
                         "role": "user",
@@ -133,16 +85,14 @@ OUTPUT ONLY VALID JSON. Do not include markdown like ```json.
                 ],
                 model=self.model_name,
                 temperature=0.1,
+                response_format={"type": "json_object"},
             )
             
             raw_text = response.choices[0].message.content
-            result_text = extract_json(raw_text)
-            try:
-                result_json = json.loads(result_text)
-            except json.JSONDecodeError:
-                raise ValueError(f"Model failed to generate valid JSON. Raw output: {raw_text}")
-            
+            result_json = json.loads(raw_text)
             return AIGraphAnalysisResult(**result_json)
+        except json.JSONDecodeError:
+            raise ValueError(f"Model failed to generate valid JSON. Raw output: {raw_text}")
         except Exception as e:
             logger.error(f"Groq Graph API error: {e}")
             raise
