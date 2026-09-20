@@ -72,8 +72,12 @@ OUTPUT ONLY VALID JSON. Do not include markdown like ```json.
                 temperature=0.1,
             )
             
-            result_text = extract_json(response.choices[0].message.content)
-            result_json = json.loads(result_text)
+            raw_text = response.choices[0].message.content
+            result_text = extract_json(raw_text)
+            try:
+                result_json = json.loads(result_text)
+            except json.JSONDecodeError:
+                raise ValueError(f"Model failed to generate valid JSON. Raw output: {raw_text}")
             
             return AIAnalysisResult(**result_json)
         except Exception as e:
@@ -131,8 +135,12 @@ OUTPUT ONLY VALID JSON. Do not include markdown like ```json.
                 temperature=0.1,
             )
             
-            result_text = extract_json(response.choices[0].message.content)
-            result_json = json.loads(result_text)
+            raw_text = response.choices[0].message.content
+            result_text = extract_json(raw_text)
+            try:
+                result_json = json.loads(result_text)
+            except json.JSONDecodeError:
+                raise ValueError(f"Model failed to generate valid JSON. Raw output: {raw_text}")
             
             return AIGraphAnalysisResult(**result_json)
         except Exception as e:
