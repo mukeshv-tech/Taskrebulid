@@ -81,13 +81,14 @@ Recent Activity:
 {json.dumps([a.model_dump() for a in input_data.activity], indent=2)}
 
 INSTRUCTIONS:
-Extract a structured knowledge graph (nodes and edges) representing the entities, concepts, and relationships found in the provided Resources and Activity.
-1. Use only supplied information. Do not invent resources, facts, or URLs.
-2. Deduplicate nodes. E.g., "Machine Learning" and "machine learning" should be a single node. Don't aggressively merge concepts if uncertain.
-3. Node labels must be clear and concise.
-4. Edge relationship types must be one of: "related_to", "about", "requires", "answers", "part_of", "references".
-5. Provide evidence for edges strictly referring to the provided resource IDs or activity context. Return no relationship when evidence is insufficient.
-6. Confidence must be between 0.0 and 1.0 based on the evidence strength.
+Extract a COMPREHENSIVE and EXHAUSTIVE structured knowledge graph (nodes and edges) representing ALL entities, concepts, and relationships found in the provided Resources and Activity.
+1. DO NOT summarize or skip activities. Create nodes for every distinct topic, tool, document, or website visited in the activity log.
+2. Use only supplied information. Do not invent resources, facts, or URLs.
+3. Deduplicate nodes. E.g., "Machine Learning" and "machine learning" should be a single node. Don't aggressively merge concepts if uncertain.
+4. Node labels must be clear and concise.
+5. Edge relationship types must be one of: "related_to", "about", "requires", "answers", "part_of", "references".
+6. Provide evidence for edges strictly referring to the provided resource IDs or activity context. Return no relationship when evidence is insufficient.
+7. Confidence must be between 0.0 and 1.0 based on the evidence strength.
 
 Output JSON matching this exact structure:
 {{
