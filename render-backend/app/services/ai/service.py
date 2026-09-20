@@ -19,7 +19,7 @@ class AIService:
         if settings.GEMINI_API_KEY:
             try:
                 from .gemini_provider import GeminiProvider
-                self.providers["gemini"] = GeminiProvider(api_key=settings.GEMINI_API_KEY, model_name=settings.MODEL_NAME or "gemini-1.5-flash")
+                self.providers["gemini"] = GeminiProvider(api_key=settings.GEMINI_API_KEY, model_name=settings.GEMINI_MODEL_NAME)
                 logger.info("Gemini provider initialized.")
             except Exception as e:
                 logger.error(f"Failed to init Gemini provider: {e}")
@@ -28,7 +28,7 @@ class AIService:
         if settings.GROQ_API_KEY:
             try:
                 from .groq_provider import GroqProvider
-                self.providers["groq"] = GroqProvider(api_key=settings.GROQ_API_KEY, model_name=settings.MODEL_NAME or "llama3-70b-8192")
+                self.providers["groq"] = GroqProvider(api_key=settings.GROQ_API_KEY, model_name=settings.GROQ_MODEL_NAME)
                 logger.info("Groq provider initialized.")
             except Exception as e:
                 logger.error(f"Failed to init Groq provider: {e}")
@@ -37,7 +37,11 @@ class AIService:
         if not settings.AI_ENABLED:
             raise HTTPException(status_code=503, detail="AI analysis is temporarily unavailable or disabled.")
         
-        provider = self.providers.get(settings.AI_PROVIDER, self.placeholder)
+        provider = self.providers.get(settings.TASK_AI_PROVIDER, self.placeholder)
+        if provider == self.placeholder and settings.TASK_AI_PROVIDER in self.providers:
+            pass # placeholder means it fell back
+        elif not provider:
+             provider = self.placeholder
 
         try:
             result = await provider.analyze_task(input_data)
@@ -50,7 +54,7 @@ class AIService:
         if not settings.AI_ENABLED:
             raise HTTPException(status_code=503, detail="AI analysis is temporarily unavailable or disabled.")
         
-        provider = self.providers.get(settings.AI_PROVIDER, self.placeholder)
+        provider = self.providers.get(settings.GRAPH_AI_PROVIDER, self.placeholder)
 
         try:
             result = await provider.analyze_graph(input_data)
