@@ -170,11 +170,15 @@ const App: React.FC = () => {
     setIsAnalyzing(true);
     setAiError('');
     try {
+      if (aiAnalysis) {
+        await deleteTaskAIAnalysis(selectedTask.id);
+        setAiAnalysis(null);
+      }
       const result = await analyzeTask(selectedTask.id);
       setAiAnalysis(result);
     } catch (e: any) {
       console.error(e);
-      setAiError('AI analysis is temporarily unavailable.');
+      setAiError(e.message || 'AI analysis is temporarily unavailable.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -369,13 +373,13 @@ const App: React.FC = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h4 style={{ margin: 0, color: '#4c1d95' }}>AI Analysis</h4>
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button 
-                onClick={handleAnalyzeTask} 
-                disabled={isAnalyzing}
-                style={{ background: '#8b5cf6', color: 'white' }}
-              >
-                {isAnalyzing ? 'Analyzing...' : 'Analyze Task'}
-              </button>
+                <button 
+                  onClick={handleAnalyzeTask} 
+                  disabled={isAnalyzing}
+                  style={{ background: '#8b5cf6', color: 'white' }}
+                >
+                  {aiAnalysis ? (isAnalyzing ? 'Refreshing...' : 'Refresh Analysis') : (isAnalyzing ? 'Analyzing...' : 'Analyze Task')}
+                </button>
             </div>
           </div>
           
