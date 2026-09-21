@@ -92,6 +92,18 @@ def get_latest_resume(task_id: str, user = Depends(get_current_user)):
         return None
     return snap_res.data[0]
 
+@router.delete("/api/tasks/{task_id}/resume")
+def delete_resume(task_id: str, user = Depends(get_current_user)):
+    supabase = get_supabase()
+    
+    # Verify task ownership
+    task_res = supabase.table("tasks").select("id").eq("id", task_id).eq("user_id", user.id).execute()
+    if not task_res.data:
+        raise HTTPException(status_code=403, detail="Not authorized or task not found")
+        
+    res = supabase.table("task_snapshots").delete().eq("task_id", task_id).eq("snapshot_type", "resume").execute()
+    return {"status": "success", "deleted": len(res.data) if res.data else 0}
+
 @router.get("/api/tasks/{task_id}/snapshots")
 def get_task_snapshots(task_id: str, user = Depends(get_current_user)):
     supabase = get_supabase()

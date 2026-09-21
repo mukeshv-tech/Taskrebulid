@@ -74,6 +74,7 @@ export const rejectGraphEdge = (taskId: string, edgeId: string) => fetchApi(`/ap
 
 export const getTaskResume = (taskId: string) => fetchApi(`/api/tasks/${taskId}/resume`);
 export const analyzeTaskResume = (taskId: string) => fetchApi(`/api/tasks/${taskId}/resume/analyze`, { method: 'POST' });
+export const deleteTaskResume = (taskId: string) => fetchApi(`/api/tasks/${taskId}/resume`, { method: 'DELETE' });
 export const getTaskSnapshots = (taskId: string) => fetchApi(`/api/tasks/${taskId}/snapshots`);
 export const getTaskSnapshot = (taskId: string, snapshotId: string) => fetchApi(`/api/tasks/${taskId}/snapshots/${snapshotId}`);
 export const restoreWorkspace = (taskId: string, urls: string[]) => fetchApi(`/api/tasks/${taskId}/workspace/restore`, { method: 'POST', body: JSON.stringify({ urls }) });
