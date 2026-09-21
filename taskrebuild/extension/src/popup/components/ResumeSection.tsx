@@ -8,6 +8,7 @@ interface ResumeSectionProps {
 const ResumeSection: React.FC<ResumeSectionProps> = ({ taskId }) => {
   const [resumeData, setResumeData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   
   // For modal
@@ -19,7 +20,7 @@ const ResumeSection: React.FC<ResumeSectionProps> = ({ taskId }) => {
 
   const fetchResume = async () => {
     try {
-      setLoading(true);
+      setLoading(true); setError(null);
       const data = await getTaskResume(taskId);
       setResumeData(data);
     } catch (err: any) {
@@ -48,7 +49,7 @@ const ResumeSection: React.FC<ResumeSectionProps> = ({ taskId }) => {
 
   const handleRefresh = async () => {
     try {
-      setLoading(true);
+      setLoading(true); setError(null);
       const data = await analyzeTaskResume(taskId);
       setResumeData(data);
     } catch (err: any) {
@@ -150,10 +151,11 @@ const ResumeSection: React.FC<ResumeSectionProps> = ({ taskId }) => {
       <h3 style={{ marginTop: 0, color: '#374151' }}>WHERE YOU LEFT OFF</h3>
       
       {loading && <p style={{ color: '#6b7280', fontStyle: 'italic' }}>Refreshing...</p>}
+      {error && <div style={{ color: 'red', fontSize: '12px', marginBottom: '10px' }}>{error}</div>}
       
       {analysis && (
         <>
-          <p style={{ fontWeight: '500', color: '#111827' }}>"{analysis.what_you_were_doing}"</p>
+          <p style={{ fontWeight: '500', color: '#111827' }}>"{String(analysis.what_you_were_doing)}"</p>
           <p style={{ fontSize: '12px', color: '#6b7280' }}>Last reconstructed: {lastActiveStr}</p>
           
           {analysis.important_resources && analysis.important_resources.length > 0 && (
@@ -162,8 +164,8 @@ const ResumeSection: React.FC<ResumeSectionProps> = ({ taskId }) => {
               <ul style={{ margin: '5px 0', paddingLeft: '20px', fontSize: '13px' }}>
                 {analysis.important_resources.map((r: any, idx: number) => (
                   <li key={idx}>
-                    <a href={r.url} target="_blank" rel="noopener noreferrer" style={{color: '#2563eb', textDecoration: 'none'}}>{r.title || r.url}</a>
-                    <br/><span style={{ color: '#6b7280' }}>{r.reason}</span>
+                    <a href={r.url} target="_blank" rel="noopener noreferrer" style={{color: '#2563eb', textDecoration: 'none'}}>{String(r.title || r.url)}</a>
+                    <br/><span style={{ color: '#6b7280' }}>{String(r.reason)}</span>
                   </li>
                 ))}
               </ul>
@@ -175,7 +177,7 @@ const ResumeSection: React.FC<ResumeSectionProps> = ({ taskId }) => {
               <strong style={{ fontSize: '13px' }}>Open questions:</strong>
               <ul style={{ margin: '5px 0', paddingLeft: '20px', fontSize: '13px' }}>
                 {analysis.open_questions.map((q: string, idx: number) => (
-                  <li key={idx}>{q}</li>
+                  <li key={idx}>{String(q)}</li>
                 ))}
               </ul>
             </div>
@@ -186,7 +188,7 @@ const ResumeSection: React.FC<ResumeSectionProps> = ({ taskId }) => {
               <strong style={{ fontSize: '13px' }}>Suggested next steps:</strong>
               <ul style={{ margin: '5px 0', paddingLeft: '20px', fontSize: '13px' }}>
                 {analysis.next_steps.map((s: string, idx: number) => (
-                  <li key={idx}>{s}</li>
+                  <li key={idx}>{String(s)}</li>
                 ))}
               </ul>
             </div>
@@ -238,7 +240,7 @@ const ResumeSection: React.FC<ResumeSectionProps> = ({ taskId }) => {
                       onChange={() => toggleUrlSelection(r.url)} 
                     />
                     <label htmlFor={`res-${r.url}`} style={{ fontSize: '12px', marginLeft: '5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {r.title || r.url}
+                      {String(r.title || r.url)}
                     </label>
                   </div>
                 ))
