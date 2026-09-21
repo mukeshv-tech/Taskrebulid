@@ -4,7 +4,7 @@ from typing import Any
 from app.config import settings
 from .interface import AIProvider
 from .placeholder import PlaceholderAIProvider
-from .schemas import AIAnalysisInput, AIAnalysisResult
+from .schemas import AIAnalysisInput, AIAnalysisResult, AIResumeInput, AIResumeResult
 
 logger = logging.getLogger(__name__)
 
@@ -63,4 +63,21 @@ class AIService:
             logger.error(f"AI graph analysis failed: {e}")
             raise HTTPException(status_code=500, detail=f"AI graph analysis failed: {e}")
 
+
+    async def analyze_resume(self, input_data: Any) -> Any:
+        if not settings.AI_ENABLED:
+            raise HTTPException(status_code=503, detail="AI analysis is temporarily unavailable or disabled.")
+        
+        provider = self.providers.get(settings.RESUME_AI_PROVIDER, self.placeholder)
+        if provider == self.placeholder and settings.RESUME_AI_PROVIDER in self.providers:
+            pass
+        elif not provider:
+             provider = self.placeholder
+
+        try:
+            result = await provider.analyze_resume(input_data)
+            return result
+        except Exception as e:
+            logger.error(f"AI resume analysis failed: {e}")
+            raise HTTPException(status_code=500, detail=f"AI resume analysis failed: {e}")
 ai_service = AIService()

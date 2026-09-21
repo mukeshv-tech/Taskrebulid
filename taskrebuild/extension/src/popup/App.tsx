@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchApi, getTaskResources, createTaskResource, deleteTaskResource, getTaskActivity, analyzeTask, getTaskAIAnalyses, deleteTaskActivity, deleteTaskAIAnalysis, clearTaskActivity } from '../lib/api';
 import GraphTab from './components/GraphTab';
+import ResumeSection from './components/ResumeSection';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -279,6 +280,8 @@ const App: React.FC = () => {
           </p>
         </div>
 
+        <ResumeSection taskId={selectedTask.id} />
+
         <div className="task-resources">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h4>{resources.length} Resources</h4>
@@ -334,19 +337,31 @@ const App: React.FC = () => {
           {activities.length === 0 ? (
             <p style={{ fontSize: '12px' }}>No recorded activity yet.</p>
           ) : (
-            <ul style={{ listStyleType: 'none', padding: 0, maxHeight: '200px', overflowY: 'auto' }}>
-              {activities.map((act) => (
-                <li key={act.id} style={{ marginBottom: '5px', paddingBottom: '5px', borderBottom: '1px solid #eee', fontSize: '11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <span style={{ background: '#e5e7eb', padding: '2px 4px', borderRadius: '3px', marginRight: '5px' }}>
-                      {act.event_type}
-                    </span>
-                    {act.title ? <strong>{act.title}</strong> : <span style={{ wordBreak: 'break-all' }}>{act.url}</span>}
-                  </div>
-                  <button onClick={() => handleDeleteActivity(act.id)} style={{ padding: '2px 5px', fontSize: '10px' }}>x</button>
-                </li>
+            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+              {Object.entries(activities.reduce((acc, act) => {
+                const date = new Date(act.timestamp).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+                if (!acc[date]) acc[date] = [];
+                acc[date].push(act);
+                return acc;
+              }, {} as Record<string, any[]>)).map(([dateStr, acts]) => (
+                <div key={dateStr} style={{ marginBottom: '10px' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '12px', borderBottom: '1px solid #ccc', marginBottom: '5px' }}>{dateStr}</div>
+                  <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
+                    {(acts as any[]).map((act: any) => (
+                      <li key={act.id} style={{ marginBottom: '5px', paddingBottom: '5px', borderBottom: '1px solid #eee', fontSize: '11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <span style={{ background: '#e5e7eb', padding: '2px 4px', borderRadius: '3px', marginRight: '5px' }}>
+                            {act.event_type}
+                          </span>
+                          {act.title ? <strong>{act.title}</strong> : <span style={{ wordBreak: 'break-all' }}>{act.url}</span>}
+                        </div>
+                        <button onClick={() => handleDeleteActivity(act.id)} style={{ padding: '2px 5px', fontSize: '10px' }}>x</button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </div>
         

@@ -2,7 +2,7 @@ import json
 import logging
 import google.generativeai as genai
 from .interface import AIProvider
-from .schemas import AIAnalysisInput, AIAnalysisResult, AIGraphAnalysisResult
+from .schemas import AIAnalysisInput, AIAnalysisResult, AIGraphAnalysisResult, AIResumeInput, AIResumeResult
 
 logger = logging.getLogger(__name__)
 
@@ -116,4 +116,52 @@ Respond strictly in valid JSON without markdown wrapping.
             return AIGraphAnalysisResult(**result_json)
         except Exception as e:
             logger.error(f"Gemini Graph API error: {e}")
+            raise
+
+    async def analyze_resume(self, input_data: AIResumeInput) -> AIResumeResult:
+        if not self.api_key:
+            raise ValueError("Gemini API Key is not configured.")
+
+        schema_json = json.dumps(AIResumeResult.model_json_schema())
+
+        prompt = f"""
+You are an AI assistant helping a user resume a past task.
+Task Name: {input_data.task_name}
+
+Resources:
+{json.dumps(input_data.resources, indent=2)}
+
+Activity:
+{json.dumps(input_data.activity, indent=2)}
+
+Latest AI Analysis:
+{json.dumps(input_data.latest_analysis, indent=2) if input_data.latest_analysis else "None"}
+
+Previous Snapshot:
+{json.dumps(input_data.previous_snapshot, indent=2) if input_data.previous_snapshot else "None"}
+
+INSTRUCTIONS:
+Analyze the provided history and generate a structured summary of where the user left off.
+Do not invent facts, resources, or URLs. If insufficient information, explicitly state it.
+Provide important resources strictly matching provided resource IDs.
+
+Output must be valid JSON matching this schema exactly:
+{schema_json}
+Respond strictly in valid JSON without markdown wrapping.
+"""
+        try:
+            model = genai.GenerativeModel(self.model_name)
+            response = model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    response_mime_type="application/json",
+                )
+            )
+            
+            result_text = response.text
+            result_json = json.loads(result_text)
+            
+            return AIResumeResult(**result_json)
+        except Exception as e:
+            logger.error(f"Gemini Resume API error: {e}")
             raise

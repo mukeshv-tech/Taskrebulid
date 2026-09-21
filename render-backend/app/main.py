@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import health, auth, tasks, resources, activity, ai, graph
+from app.routes import health, auth, tasks, resources, activity, ai, graph, resume
 from app.config import settings
 
 app = FastAPI(title="TaskRebuild Backend")
@@ -23,3 +23,4 @@ app.include_router(resources.router)
 app.include_router(activity.router)
 app.include_router(ai.router)
 app.include_router(graph.router)
+app.include_router(resume.router)

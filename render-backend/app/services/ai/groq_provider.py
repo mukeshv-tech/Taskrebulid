@@ -2,7 +2,7 @@ import json
 import logging
 from groq import AsyncGroq
 from .interface import AIProvider
-from .schemas import AIAnalysisInput, AIAnalysisResult, AIGraphAnalysisResult
+from .schemas import AIAnalysisInput, AIAnalysisResult, AIGraphAnalysisResult, AIResumeInput, AIResumeResult
 
 logger = logging.getLogger(__name__)
 
@@ -95,4 +95,53 @@ Recent Activity: {json.dumps([a.model_dump() for a in input_data.activity])}
             raise ValueError(f"Model failed to generate valid JSON. Raw output: {raw_text}")
         except Exception as e:
             logger.error(f"Groq Graph API error: {e}")
+            raise
+
+    async def analyze_resume(self, input_data: AIResumeInput) -> AIResumeResult:
+        if not self.client:
+            raise ValueError("Groq API Key is not configured.")
+
+        schema_json = json.dumps(AIResumeResult.model_json_schema())
+
+        prompt = f"""
+You are an AI assistant helping a user resume a past task.
+Task Name: {input_data.task_name}
+
+Resources:
+{json.dumps(input_data.resources, indent=2)}
+
+Activity:
+{json.dumps(input_data.activity, indent=2)}
+
+Latest AI Analysis:
+{json.dumps(input_data.latest_analysis, indent=2) if input_data.latest_analysis else "None"}
+
+Previous Snapshot:
+{json.dumps(input_data.previous_snapshot, indent=2) if input_data.previous_snapshot else "None"}
+
+INSTRUCTIONS:
+Analyze the provided history and generate a structured summary of where the user left off.
+Do not invent facts, resources, or URLs. If insufficient information, explicitly state it.
+Provide important resources strictly matching provided resource IDs.
+
+Output must be valid JSON matching this schema exactly:
+{schema_json}
+"""
+        try:
+            response = await self.client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": "You are a precise data analysis assistant. Output only valid JSON matching the requested schema exactly, with no additional text or markdown formatting."},
+                    {"role": "user", "content": prompt}
+                ],
+                model=self.model_name,
+                response_format={"type": "json_object"}
+            )
+            
+            raw_text = response.choices[0].message.content
+            result_json = json.loads(raw_text)
+            return AIResumeResult(**result_json)
+        except json.JSONDecodeError:
+            raise ValueError(f"Model failed to generate valid JSON. Raw output: {raw_text}")
+        except Exception as e:
+            logger.error(f"Groq Resume API error: {e}")
             raise
