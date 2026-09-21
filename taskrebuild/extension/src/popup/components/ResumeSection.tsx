@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getTaskResume, analyzeTaskResume, restoreWorkspace } from '../../lib/api';
+import { getTaskResume, analyzeTaskResume, restoreWorkspace, deleteTaskResume } from '../../lib/api';
 
 interface ResumeSectionProps {
   taskId: string;
@@ -50,11 +50,15 @@ const ResumeSection: React.FC<ResumeSectionProps> = ({ taskId }) => {
   const handleRefresh = async () => {
     try {
       setLoading(true); setError(null);
+      if (resumeData) {
+        await deleteTaskResume(taskId);
+        setResumeData(null);
+      }
       const data = await analyzeTaskResume(taskId);
       setResumeData(data);
     } catch (err: any) {
       console.error(err);
-      alert('Error generating resume: ' + err.message);
+      setError('Error generating resume: ' + err.message);
     } finally {
       setLoading(false);
     }
