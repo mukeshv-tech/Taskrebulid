@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getTaskResume, analyzeTaskResume, restoreWorkspace, getTaskResources } from '../../lib/api';
+import { getTaskResume, analyzeTaskResume, restoreWorkspace } from '../../lib/api';
 
 interface ResumeSectionProps {
   taskId: string;
@@ -11,8 +11,8 @@ const ResumeSection: React.FC<ResumeSectionProps> = ({ taskId }) => {
   const [showModal, setShowModal] = useState(false);
   
   // For modal
-  const [availableResources, setAvailableResources] = useState<any[]>([]);
-  const [selectedResourceIds, setSelectedResourceIds] = useState<Set<string>>(new Set());
+  const [availableUrls, setAvailableUrls] = useState<any[]>([]);
+  const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
 
   const [snapshots, setSnapshots] = useState<any[]>([]);
   const [showSnapshots, setShowSnapshots] = useState(false);
@@ -61,41 +61,54 @@ const ResumeSection: React.FC<ResumeSectionProps> = ({ taskId }) => {
 
   const handleOpenResumeModal = async () => {
     try {
-      // Fetch all resources to let user pick
-      const res = await getTaskResources(taskId);
-      setAvailableResources(res || []);
+      // Gather URLs from AI Important Resources, fall back to recent activity
+      const importantUrls = new Set<string>();
+      const urlObjects = new Map<string, {url: string, title: string}>();
       
-      // Auto-select important ones if possible
-      const importantIds = new Set<string>();
       if (resumeData?.state?.resume_analysis?.important_resources) {
-         resumeData.state.resume_analysis.important_resources.forEach((r: any) => importantIds.add(r.resource_id));
+         resumeData.state.resume_analysis.important_resources.forEach((r: any) => {
+           if (r.url) {
+             importantUrls.add(r.url);
+             urlObjects.set(r.url, { url: r.url, title: r.title || r.url });
+           }
+         });
       }
-      setSelectedResourceIds(importantIds);
+
+      if (resumeData?.state?.recent_activity) {
+        resumeData.state.recent_activity.forEach((a: any) => {
+           if (a.url && !urlObjects.has(a.url)) {
+             urlObjects.set(a.url, { url: a.url, title: a.title || a.url });
+           }
+        });
+      }
+
+      setAvailableUrls(Array.from(urlObjects.values()));
+      setSelectedUrls(importantUrls);
       
       setShowModal(true);
     } catch (err) {
       console.error(err);
-      alert('Failed to load resources for restore.');
+      alert('Failed to load activity for restore.');
     }
   };
 
-  const toggleResourceSelection = (id: string) => {
-    const newSet = new Set(selectedResourceIds);
-    if (newSet.has(id)) {
-      newSet.delete(id);
+  const toggleUrlSelection = (url: string) => {
+    const newSet = new Set(selectedUrls);
+    if (newSet.has(url)) {
+      newSet.delete(url);
     } else {
-      newSet.add(id);
+      newSet.add(url);
     }
-    setSelectedResourceIds(newSet);
+    setSelectedUrls(newSet);
   };
 
   const handleRestoreSelected = async () => {
-    if (selectedResourceIds.size === 0) {
-      alert('Please select at least one resource to restore.');
+    if (selectedUrls.size === 0) {
+      alert('Please select at least one URL to restore.');
       return;
     }
     try {
-      const response = await restoreWorkspace(taskId, Array.from(selectedResourceIds));
+      const response = await restoreWorkspace(taskId, Array.from(selectedUrls));
       if (response && response.urls) {
         if (chrome && chrome.tabs) {
           response.urls.forEach((url: string) => {
@@ -148,7 +161,10 @@ const ResumeSection: React.FC<ResumeSectionProps> = ({ taskId }) => {
               <strong style={{ fontSize: '13px' }}>Important resources:</strong>
               <ul style={{ margin: '5px 0', paddingLeft: '20px', fontSize: '13px' }}>
                 {analysis.important_resources.map((r: any, idx: number) => (
-                  <li key={idx}>{r.reason} (ID: {r.resource_id.substring(0,6)}...)</li>
+                  <li key={idx}>
+                    <a href={r.url} target="_blank" rel="noopener noreferrer" style={{color: '#2563eb', textDecoration: 'none'}}>{r.title || r.url}</a>
+                    <br/><span style={{ color: '#6b7280' }}>{r.reason}</span>
+                  </li>
                 ))}
               </ul>
             </div>
@@ -207,21 +223,21 @@ const ResumeSection: React.FC<ResumeSectionProps> = ({ taskId }) => {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ background: 'white', padding: '20px', borderRadius: '8px', width: '90%', maxWidth: '400px', maxHeight: '80vh', overflowY: 'auto' }}>
             <h3 style={{ marginTop: 0 }}>Resume Task</h3>
-            <p style={{ fontSize: '13px' }}>TaskRebuild found {availableResources.length} saved resources. The following tabs can be reopened:</p>
+            <p style={{ fontSize: '13px' }}>TaskRebuild found {availableUrls.length} recent activity URLs. The following tabs can be reopened:</p>
             
             <div style={{ marginBottom: '15px', border: '1px solid #e5e7eb', padding: '10px', borderRadius: '4px', maxHeight: '200px', overflowY: 'auto' }}>
-              {availableResources.length === 0 ? (
-                <p style={{ fontSize: '12px', color: '#6b7280' }}>No resources saved for this task.</p>
+              {availableUrls.length === 0 ? (
+                <p style={{ fontSize: '12px', color: '#6b7280' }}>No activity saved for this task.</p>
               ) : (
-                availableResources.map(r => (
-                  <div key={r.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+                availableUrls.map(r => (
+                  <div key={r.url} style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
                     <input 
                       type="checkbox" 
-                      id={`res-${r.id}`} 
-                      checked={selectedResourceIds.has(r.id)} 
-                      onChange={() => toggleResourceSelection(r.id)} 
+                      id={`res-${r.url}`} 
+                      checked={selectedUrls.has(r.url)} 
+                      onChange={() => toggleUrlSelection(r.url)} 
                     />
-                    <label htmlFor={`res-${r.id}`} style={{ fontSize: '12px', marginLeft: '5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <label htmlFor={`res-${r.url}`} style={{ fontSize: '12px', marginLeft: '5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {r.title || r.url}
                     </label>
                   </div>
@@ -230,7 +246,7 @@ const ResumeSection: React.FC<ResumeSectionProps> = ({ taskId }) => {
             </div>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', color: '#6b7280' }}>{selectedResourceIds.size} resources selected</span>
+              <span style={{ fontSize: '12px', color: '#6b7280' }}>{selectedUrls.size} URLs selected</span>
               <div>
                 <button onClick={() => setShowModal(false)} style={{ marginRight: '10px', background: 'none', border: '1px solid #d1d5db', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
                 <button onClick={handleRestoreSelected} style={{ backgroundColor: '#2563eb', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Restore Selected</button>

@@ -58,7 +58,8 @@ class AIGraphAnalysisResult(BaseModel):
     edges: List[GraphEdge] = Field(default_factory=list)
 
 class ResumeImportantResource(BaseModel):
-    resource_id: str
+    url: str
+    title: Optional[str] = None
     reason: str
 
 class AIResumeResult(BaseModel):

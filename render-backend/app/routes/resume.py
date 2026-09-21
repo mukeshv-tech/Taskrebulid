@@ -9,9 +9,6 @@ from app.services.ai.schemas import AIResumeInput
 
 router = APIRouter()
 
-class RestoreWorkspaceRequest(BaseModel):
-    resource_ids: List[str]
-
 @router.post("/api/tasks/{task_id}/resume/analyze")
 async def analyze_resume(task_id: str, user = Depends(get_current_user)):
     supabase = get_supabase()
@@ -113,6 +110,9 @@ def get_task_snapshot(task_id: str, snapshot_id: str, user = Depends(get_current
         raise HTTPException(status_code=404, detail="Snapshot not found")
     return snap_res.data[0]
 
+class RestoreWorkspaceRequest(BaseModel):
+    urls: List[str]
+
 @router.post("/api/tasks/{task_id}/workspace/restore")
 def restore_workspace(task_id: str, request: RestoreWorkspaceRequest, user = Depends(get_current_user)):
     supabase = get_supabase()
@@ -120,7 +120,16 @@ def restore_workspace(task_id: str, request: RestoreWorkspaceRequest, user = Dep
     if not task_res.data:
         raise HTTPException(status_code=403, detail="Not authorized")
         
-    res_res = supabase.table("task_resources").select("id, url").eq("task_id", task_id).in_("id", request.resource_ids).execute()
+    # Gather all URLs associated with this task to validate against
+    res_res = supabase.table("task_resources").select("url").eq("task_id", task_id).execute()
+    act_res = supabase.table("task_activity").select("url").eq("task_id", task_id).execute()
     
-    urls_to_restore = [r["url"] for r in res_res.data]
+    valid_urls = set()
+    for r in res_res.data:
+        valid_urls.add(r["url"])
+    for a in act_res.data:
+        if a.get("url"):
+            valid_urls.add(a["url"])
+            
+    urls_to_restore = [url for url in request.urls if url in valid_urls]
     return {"status": "success", "urls": urls_to_restore}
