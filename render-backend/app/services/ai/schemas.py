@@ -56,3 +56,25 @@ class GraphEdge(BaseModel):
 class AIGraphAnalysisResult(BaseModel):
     nodes: List[GraphNode] = Field(default_factory=list)
     edges: List[GraphEdge] = Field(default_factory=list)
+
+class ResumeImportantResource(BaseModel):
+    resource_id: str
+    reason: str
+
+class AIResumeResult(BaseModel):
+    resume_summary: str
+    what_you_were_doing: str
+    last_known_progress: str
+    important_resources: List[ResumeImportantResource] = Field(default_factory=list)
+    open_questions: List[str] = Field(default_factory=list)
+    next_steps: List[str] = Field(default_factory=list)
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+
+class AIResumeInput(BaseModel):
+    task_id: str
+    task_name: str
+    resources: List[dict]
+    activity: List[dict]
+    latest_analysis: Optional[dict] = None
+    task_graph: Optional[dict] = None
+    previous_snapshot: Optional[dict] = None

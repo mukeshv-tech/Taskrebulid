@@ -71,3 +71,9 @@ export const analyzeTaskGraph = (taskId: string) => fetchApi(`/api/tasks/${taskI
 export const deleteGraphNode = (taskId: string, nodeId: string) => fetchApi(`/api/tasks/${taskId}/graph/nodes/${nodeId}`, { method: 'DELETE' });
 export const deleteGraphEdge = (taskId: string, edgeId: string) => fetchApi(`/api/tasks/${taskId}/graph/edges/${edgeId}`, { method: 'DELETE' });
 export const rejectGraphEdge = (taskId: string, edgeId: string) => fetchApi(`/api/tasks/${taskId}/graph/edges/${edgeId}/reject`, { method: 'POST' });
+
+export const getTaskResume = (taskId: string) => fetchApi(`/api/tasks/${taskId}/resume`);
+export const analyzeTaskResume = (taskId: string) => fetchApi(`/api/tasks/${taskId}/resume/analyze`, { method: 'POST' });
+export const getTaskSnapshots = (taskId: string) => fetchApi(`/api/tasks/${taskId}/snapshots`);
+export const getTaskSnapshot = (taskId: string, snapshotId: string) => fetchApi(`/api/tasks/${taskId}/snapshots/${snapshotId}`);
+export const restoreWorkspace = (taskId: string, resourceIds: string[]) => fetchApi(`/api/tasks/${taskId}/workspace/restore`, { method: 'POST', body: JSON.stringify({ resource_ids: resourceIds }) });

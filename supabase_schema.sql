@@ -205,3 +205,28 @@ create index idx_task_edges_user_id on public.task_edges(user_id);
 create index idx_task_edges_source on public.task_edges(source_node_id);
 create index idx_task_edges_target on public.task_edges(target_node_id);
 
+
+-- Phase 6: Task Snapshots
+CREATE TABLE public.task_snapshots (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_id UUID NOT NULL REFERENCES public.tasks(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    snapshot_type TEXT NOT NULL,
+    summary TEXT,
+    state JSONB NOT NULL,
+    activity_count INTEGER,
+    resource_count INTEGER,
+    graph_node_count INTEGER,
+    graph_edge_count INTEGER,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.task_snapshots ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY ""Users can view their own task snapshots"" ON public.task_snapshots FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY ""Users can insert their own task snapshots"" ON public.task_snapshots FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY ""Users can delete their own task snapshots"" ON public.task_snapshots FOR DELETE USING (auth.uid() = user_id);
+
+CREATE INDEX idx_task_snapshots_task_id ON public.task_snapshots(task_id);
+CREATE INDEX idx_task_snapshots_user_id ON public.task_snapshots(user_id);
+CREATE INDEX idx_task_snapshots_task_created ON public.task_snapshots(task_id, created_at DESC);
