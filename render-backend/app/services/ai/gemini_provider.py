@@ -143,7 +143,7 @@ Previous Snapshot:
 INSTRUCTIONS:
 Analyze the provided history and generate a structured summary of where the user left off.
 Do not invent facts, resources, or URLs. If insufficient information, explicitly state it.
-Provide important resources strictly matching provided resource IDs.
+Provide important URLs directly from the recent Activity that the user should reopen to continue their task.
 
 Output must be valid JSON matching this schema exactly:
 {schema_json}
