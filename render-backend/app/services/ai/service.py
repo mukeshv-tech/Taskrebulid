@@ -80,4 +80,21 @@ class AIService:
         except Exception as e:
             logger.error(f"AI resume analysis failed: {e}")
             raise HTTPException(status_code=500, detail=f"AI resume analysis failed: {e}")
+
+
+    async def analyze_replacement(self, original_resource: dict, task_name: str, existing_resources: list, task_graph: dict) -> Any:
+        if not settings.AI_ENABLED:
+            raise HTTPException(status_code=503, detail="AI analysis is temporarily unavailable or disabled.")
+        
+        provider = self.providers.get('groq', self.placeholder)
+        if not provider:
+             provider = self.placeholder
+
+        try:
+            result = await provider.analyze_replacement(original_resource, task_name, existing_resources, task_graph)
+            return result
+        except Exception as e:
+            logger.error(f"AI replacement analysis failed: {e}")
+            raise HTTPException(status_code=500, detail=f"AI replacement analysis failed: {e}")
+
 ai_service = AIService()

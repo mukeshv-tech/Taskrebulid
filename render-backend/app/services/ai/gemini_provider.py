@@ -165,3 +165,6 @@ Respond strictly in valid JSON without markdown wrapping.
         except Exception as e:
             logger.error(f"Gemini Resume API error: {e}")
             raise
+
+    async def analyze_replacement(self, original_resource: dict, task_name: str, existing_resources: list, task_graph: dict):
+        raise NotImplementedError(\"Gemini does not support analyze_replacement yet\")
