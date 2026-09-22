@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getTaskResourcesStatus, triggerResourceCheck, analyzeResourceReplacement, replaceResourceWithExisting, getTaskActivity, dismissResourceAlert } from '../../lib/api';
+import { getTaskResourcesStatus, triggerResourceCheck, analyzeResourceReplacement, replaceResourceWithExisting, getTaskActivity, dismissResourceAlert, toggleAutoMonitor } from '../../lib/api';
 
 interface ResourceMonitorProps {
   taskId: string;
@@ -8,6 +8,7 @@ interface ResourceMonitorProps {
 const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
   const [resources, setResources] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
+  const [autoMonitor, setAutoMonitor] = useState<boolean>(false);
   const [loading, setLoading] = useState(false);
   const [checkingId, setCheckingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +24,7 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
       setLoading(true);
       const data = await getTaskResourcesStatus(taskId);
       setResources(data.resources || []);
+      setAutoMonitor(data.auto_monitor_enabled || false);
       const actData = await getTaskActivity(taskId);
       setActivities(actData || []);
     } catch (err: any) {
@@ -92,6 +94,21 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
     }
   };
 
+  const handleToggleAutoMonitor = async () => {
+    try {
+      const data = await toggleAutoMonitor(taskId);
+      setAutoMonitor(data.auto_monitor_enabled);
+      
+      // Update background alarm state if enabled
+      if (data.auto_monitor_enabled) {
+        chrome.runtime.sendMessage({ type: 'ENABLE_RESOURCE_MONITOR' });
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert('Failed to toggle auto-monitor: ' + err.message);
+    }
+  };
+
   const getStatusDisplay = (r: any) => {
     if (r.replaced_by_resource_id) return <span style={{ color: '#6b7280' }}>Replaced</span>;
     if (!r.check_status) return <span style={{ color: '#6b7280' }}>Never checked</span>;
@@ -125,7 +142,20 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
 
   return (
     <div style={{ marginBottom: '20px', padding: '15px', border: '1px solid #e5e7eb', borderRadius: '8px', backgroundColor: '#fff' }}>
-      <h3 style={{ marginTop: 0, color: '#111827' }}>RESOURCE ALERTS</h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+        <h3 style={{ margin: 0, color: '#111827' }}>RESOURCE ALERTS</h3>
+        <button 
+          onClick={handleToggleAutoMonitor}
+          style={{ 
+            fontSize: '11px', padding: '4px 10px', borderRadius: '12px', border: 'none', cursor: 'pointer',
+            background: autoMonitor ? '#10b981' : '#e5e7eb',
+            color: autoMonitor ? 'white' : '#4b5563',
+            fontWeight: 600
+          }}
+        >
+          {autoMonitor ? 'Auto-Monitor: ON' : 'Auto-Monitor: OFF'}
+        </button>
+      </div>
       {error && <p style={{ color: 'red', fontSize: '12px' }}>{String(error)}</p>}
       
       {loading && resources.length === 0 && <p style={{ fontSize: '12px', color: '#6b7280' }}>Loading resources...</p>}
