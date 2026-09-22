@@ -54,6 +54,15 @@ async def check_resource(task_id: str, resource_id: str, user=Depends(get_curren
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/api/tasks/{task_id}/resources/{resource_id}/dismiss-alert")
+def dismiss_alert(task_id: str, resource_id: str, user=Depends(get_current_user)):
+    try:
+        supabase = get_supabase()
+        supabase.table('task_resources').update({'check_status': 'available'}).eq('id', resource_id).eq('user_id', user.id).execute()
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/api/tasks/{task_id}/resources/{resource_id}/replacement-analysis")
 async def analyze_replacement(task_id: str, resource_id: str, user=Depends(get_current_user)):
     try:

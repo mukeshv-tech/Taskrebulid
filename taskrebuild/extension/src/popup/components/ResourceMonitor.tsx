@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getTaskResourcesStatus, triggerResourceCheck, analyzeResourceReplacement, replaceResourceWithExisting, getTaskActivity } from '../../lib/api';
+import { getTaskResourcesStatus, triggerResourceCheck, analyzeResourceReplacement, replaceResourceWithExisting, getTaskActivity, dismissResourceAlert } from '../../lib/api';
 
 interface ResourceMonitorProps {
   taskId: string;
@@ -47,6 +47,16 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
       alert('Check failed: ' + err.message);
     } finally {
       setCheckingId(null);
+    }
+  };
+
+  const handleDismiss = async (resourceId: string) => {
+    try {
+      await dismissResourceAlert(taskId, resourceId);
+      await fetchResources();
+    } catch (err: any) {
+      console.error(err);
+      alert('Dismiss failed: ' + err.message);
     }
   };
 
@@ -156,9 +166,15 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
                 </button>
                 <button 
                   onClick={() => handleOpenReplace(r.id)}
-                  style={{ fontSize: '11px', padding: '4px 8px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                  style={{ fontSize: '11px', padding: '4px 8px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '10px' }}
                 >
                   Replace
+                </button>
+                <button 
+                  onClick={() => handleDismiss(r.id)}
+                  style={{ fontSize: '11px', padding: '4px 8px', background: 'transparent', color: '#6b7280', border: '1px solid #d1d5db', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Dismiss
                 </button>
 
                 {candidatesMap[r.id] && (
