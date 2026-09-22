@@ -157,6 +157,20 @@ async def check_resource(task_id: str, resource_id: str, user=Depends(get_curren
 
 
 
+@router.post("/api/tasks/{task_id}/resources/{resource_id}/toggle-ignore")
+def toggle_ignore(task_id: str, resource_id: str, user=Depends(get_current_user)):
+    try:
+        supabase = get_supabase()
+        res = supabase.table('task_resources').select('is_ignored').eq('id', resource_id).eq('user_id', user.id).execute()
+        if not res.data:
+            raise HTTPException(status_code=404, detail="Resource not found")
+            
+        current = res.data[0].get('is_ignored', False)
+        supabase.table('task_resources').update({'is_ignored': not current}).eq('id', resource_id).eq('user_id', user.id).execute()
+        return {"status": "success", "is_ignored": not current}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/api/tasks/{task_id}/resources/{resource_id}/dismiss-alert")
 def dismiss_alert(task_id: str, resource_id: str, user=Depends(get_current_user)):
     try:
