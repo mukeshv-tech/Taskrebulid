@@ -257,3 +257,11 @@ CREATE POLICY ""Users can delete their own resource checks"" ON public.resource_
 
 CREATE INDEX idx_resource_checks_resource_id ON public.resource_checks(resource_id);
 CREATE INDEX idx_resource_checks_task_id ON public.resource_checks(task_id);
+- -   P h a s e   7 :   A u t o m a t e d   C r o n   M o n i t o r i n g  
+ A L T E R   T A B L E   p u b l i c . t a s k s   A D D   C O L U M N   a u t o _ m o n i t o r _ e n a b l e d   b o o l e a n   D E F A U L T   f a l s e ;  
+ A L T E R   T A B L E   p u b l i c . t a s k _ r e s o u r c e s   A D D   C O L U M N   i s _ i g n o r e d   b o o l e a n   D E F A U L T   f a l s e ;  
+ 
+
+-- Phase 7: Automated Cron Monitoring
+ALTER TABLE public.tasks ADD COLUMN auto_monitor_enabled boolean DEFAULT false;
+ALTER TABLE public.task_resources ADD COLUMN is_ignored boolean DEFAULT false;
