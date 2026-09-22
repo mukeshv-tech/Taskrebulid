@@ -203,7 +203,7 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
                       style={{ marginRight: '8px' }}
                     />
                     <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {res.title || res.url}
+                      {String(res.title || res.url)}
                     </div>
                   </label>
                 </div>
