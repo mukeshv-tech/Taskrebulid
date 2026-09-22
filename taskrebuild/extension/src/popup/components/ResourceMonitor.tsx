@@ -21,7 +21,7 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
     try {
       setLoading(true);
       const data = await getTaskResourcesStatus(taskId);
-      setResources(data || []);
+      setResources(data.resources || []);
     } catch (err: any) {
       console.error(err);
       setError(err.message);
@@ -51,8 +51,8 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
     try {
       setAnalyzingId(resourceId);
       const result = await analyzeResourceReplacement(taskId, resourceId);
-      if (result && result.candidates) {
-        setCandidatesMap(prev => ({ ...prev, [resourceId]: result.candidates }));
+      if (result && result.analysis && result.analysis.candidates) {
+        setCandidatesMap(prev => ({ ...prev, [resourceId]: result.analysis.candidates }));
       }
     } catch (err: any) {
       console.error(err);
