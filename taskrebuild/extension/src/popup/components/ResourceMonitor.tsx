@@ -99,10 +99,7 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
       const data = await toggleAutoMonitor(taskId);
       setAutoMonitor(data.auto_monitor_enabled);
       
-      // Update background alarm state if enabled
-      if (data.auto_monitor_enabled) {
-        chrome.runtime.sendMessage({ type: 'ENABLE_RESOURCE_MONITOR' });
-      }
+      
     } catch (err: any) {
       console.error(err);
       alert('Failed to toggle auto-monitor: ' + err.message);
