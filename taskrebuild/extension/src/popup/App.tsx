@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { fetchApi, getTaskResources, createTaskResource, deleteTaskResource, getTaskActivity, analyzeTask, getTaskAIAnalyses, deleteTaskActivity, deleteTaskAIAnalysis, clearTaskActivity } from '../lib/api';
 import GraphTab from './components/GraphTab';
 import ResumeSection from './components/ResumeSection';
+import ResourceMonitor from './components/ResourceMonitor';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -285,6 +286,8 @@ const App: React.FC = () => {
         </div>
 
         <ResumeSection taskId={selectedTask.id} />
+        
+        <ResourceMonitor taskId={selectedTask.id} />
 
         <div className="task-resources">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
