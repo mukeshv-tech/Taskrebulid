@@ -79,3 +79,12 @@ class AIResumeInput(BaseModel):
     latest_analysis: Optional[dict] = None
     task_graph: Optional[dict] = None
     previous_snapshot: Optional[dict] = None
+
+class ReplacementCandidate(BaseModel):
+    resource_id: str
+    reason: str
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+
+class ReplacementAnalysisResult(BaseModel):
+    original_resource_id: str
+    candidates: List[ReplacementCandidate] = Field(default_factory=list)

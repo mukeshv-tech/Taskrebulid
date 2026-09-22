@@ -14,3 +14,9 @@ class AIProvider(ABC):
     @abstractmethod
     async def analyze_resume(self, input_data: AIResumeInput) -> AIResumeResult:
         pass
+
+    @abstractmethod
+    async def analyze_replacement(self, original_resource: dict, task_name: str, existing_resources: list, task_graph: dict) -> Any:
+        pass
+
+        pass
