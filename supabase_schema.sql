@@ -230,3 +230,30 @@ CREATE POLICY ""Users can delete their own task snapshots"" ON public.task_snaps
 CREATE INDEX idx_task_snapshots_task_id ON public.task_snapshots(task_id);
 CREATE INDEX idx_task_snapshots_user_id ON public.task_snapshots(user_id);
 CREATE INDEX idx_task_snapshots_task_created ON public.task_snapshots(task_id, created_at DESC);
+-- Phase 7: Resource Monitoring
+ALTER TABLE public.task_resources ADD COLUMN check_status text;
+ALTER TABLE public.task_resources ADD COLUMN content_hash text;
+ALTER TABLE public.task_resources ADD COLUMN last_checked_at timestamptz;
+ALTER TABLE public.task_resources ADD COLUMN replaced_at timestamptz;
+ALTER TABLE public.task_resources ADD COLUMN replaced_by_resource_id uuid REFERENCES public.task_resources(id) ON DELETE SET NULL;
+
+CREATE TABLE public.resource_checks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    resource_id UUID NOT NULL REFERENCES public.task_resources(id) ON DELETE CASCADE,
+    task_id UUID NOT NULL REFERENCES public.tasks(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    check_status TEXT NOT NULL,
+    change_type TEXT,
+    change_severity TEXT,
+    content_hash TEXT,
+    error_message TEXT,
+    checked_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.resource_checks ENABLE ROW LEVEL SECURITY;
+CREATE POLICY ""Users can view their own resource checks"" ON public.resource_checks FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY ""Users can insert their own resource checks"" ON public.resource_checks FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY ""Users can delete their own resource checks"" ON public.resource_checks FOR DELETE USING (auth.uid() = user_id);
+
+CREATE INDEX idx_resource_checks_resource_id ON public.resource_checks(resource_id);
+CREATE INDEX idx_resource_checks_task_id ON public.resource_checks(task_id);
