@@ -65,6 +65,9 @@ async def analyze_replacement(task_id: str, resource_id: str, user=Depends(get_c
         
         all_res_resp = supabase.table('task_resources').select('*').eq('task_id', task_id).eq('user_id', user.id).execute()
         existing_resources = all_res_resp.data
+
+        act_resp = supabase.table('task_activity').select('*').eq('task_id', task_id).eq('user_id', user.id).order('timestamp', desc=True).limit(50).execute()
+        existing_activity = act_resp.data
         
         task_resp = supabase.table('tasks').select('*').eq('id', task_id).eq('user_id', user.id).execute()
         task_name = task_resp.data[0]['name'] if task_resp.data else "Unknown Task"
@@ -74,7 +77,8 @@ async def analyze_replacement(task_id: str, resource_id: str, user=Depends(get_c
             original_resource=original_resource,
             task_name=task_name,
             existing_resources=existing_resources,
-            task_graph=None
+            task_graph=None,
+            existing_activity=existing_activity
         )
         return {"status": "success", "analysis": result.model_dump()}
     except HTTPException:

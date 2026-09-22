@@ -16,7 +16,7 @@ class AIProvider(ABC):
         pass
 
     @abstractmethod
-    async def analyze_replacement(self, original_resource: dict, task_name: str, existing_resources: list, task_graph: dict) -> Any:
+    async def analyze_replacement(self, original_resource: dict, task_name: str, existing_resources: list, task_graph: dict, existing_activity: list = None) -> Any:
         pass
 
         pass

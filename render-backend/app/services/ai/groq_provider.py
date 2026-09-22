@@ -146,7 +146,7 @@ Output must be valid JSON matching this schema exactly:
             logger.error(f"Groq Resume API error: {e}")
             raise
 
-    async def analyze_replacement(self, original_resource: dict, task_name: str, existing_resources: list, task_graph: dict):
+    async def analyze_replacement(self, original_resource: dict, task_name: str, existing_resources: list, task_graph: dict, existing_activity: list = None):
         if not self.client:
             raise ValueError("Groq API Key is not configured.")
 
@@ -163,12 +163,16 @@ Broken Resource:
 Existing Task Resources:
 {json.dumps(existing_resources, indent=2)}
 
+Recent Task Activity:
+{json.dumps(existing_activity, indent=2) if existing_activity else 'None'}
+
 Task Graph:
-{json.dumps(task_graph, indent=2) if task_graph else "None"}
+{json.dumps(task_graph, indent=2) if task_graph else 'None'}
 
 INSTRUCTIONS:
-Analyze the broken resource and the existing resources. 
-Suggest up to 3 existing resources that could serve as a good replacement or alternative for the broken resource.
+Analyze the broken resource, the existing resources, and the recent task activity. 
+Suggest up to 3 resources (from Existing Task Resources or Recent Task Activity) that could serve as a good replacement or alternative for the broken resource.
+IMPORTANT: If you suggest a resource from Recent Task Activity, use its URL as the resource_id!
 Output must be valid JSON matching this schema exactly:
 {schema_json}
 """

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getTaskResourcesStatus, triggerResourceCheck, analyzeResourceReplacement, replaceResourceWithExisting } from '../../lib/api';
+import { getTaskResourcesStatus, triggerResourceCheck, analyzeResourceReplacement, replaceResourceWithExisting, getTaskActivity } from '../../lib/api';
 
 interface ResourceMonitorProps {
   taskId: string;
@@ -7,6 +7,7 @@ interface ResourceMonitorProps {
 
 const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
   const [resources, setResources] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [checkingId, setCheckingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +23,8 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
       setLoading(true);
       const data = await getTaskResourcesStatus(taskId);
       setResources(data.resources || []);
+      const actData = await getTaskActivity(taskId);
+      setActivities(actData || []);
     } catch (err: any) {
       console.error(err);
       setError(err.message);
@@ -188,9 +191,10 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ background: 'white', padding: '20px', borderRadius: '8px', width: '90%', maxWidth: '400px' }}>
             <h3 style={{ marginTop: 0 }}>Replace Resource</h3>
-            <p style={{ fontSize: '12px' }}>Select an existing resource to replace the unavailable one.</p>
+            <p style={{ fontSize: '12px' }}>Select an existing resource or activity link to replace the unavailable one.</p>
             
             <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #e5e7eb', padding: '10px', marginBottom: '15px' }}>
+              <h5 style={{ margin: '0 0 5px 0' }}>Existing Resources</h5>
               {resources.filter(res => res.id !== showReplaceModal && !res.replaced_by_resource_id).map(res => (
                 <div key={res.id} style={{ marginBottom: '5px' }}>
                   <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center' }}>
@@ -204,6 +208,25 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
                     />
                     <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {String(res.title || res.url)}
+                    </div>
+                  </label>
+                </div>
+              ))}
+              
+              <h5 style={{ margin: '15px 0 5px 0' }}>Recent Activity</h5>
+              {activities.filter(a => a.url).slice(0, 15).map(act => (
+                <div key={act.id} style={{ marginBottom: '5px' }}>
+                  <label style={{ fontSize: '12px', display: 'flex', alignItems: 'center' }}>
+                    <input 
+                      type="radio" 
+                      name="replacementCandidate" 
+                      value={act.url} 
+                      checked={selectedCandidate === act.url}
+                      onChange={() => setSelectedCandidate(act.url)}
+                      style={{ marginRight: '8px' }}
+                    />
+                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {String(act.title || act.url)}
                     </div>
                   </label>
                 </div>
