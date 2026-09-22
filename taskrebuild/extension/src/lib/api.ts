@@ -83,6 +83,7 @@ export const restoreWorkspace = (taskId: string, urls: string[]) => fetchApi(`/a
 export const getTaskResourcesStatus = (taskId: string) => fetchApi(`/api/tasks/${taskId}/resources/status`);
 export const getResourceChecks = (taskId: string, resourceId: string) => fetchApi(`/api/tasks/${taskId}/resources/${resourceId}/checks`);
 export const triggerResourceCheck = (taskId: string, resourceId: string) => fetchApi(`/api/tasks/${taskId}/resources/${resourceId}/check`, { method: 'POST' });
+export const dismissResourceAlert = (taskId: string, resourceId: string) => fetchApi(`/api/tasks/${taskId}/resources/${resourceId}/dismiss-alert`, { method: 'POST' });
 export const analyzeResourceReplacement = (taskId: string, resourceId: string) => fetchApi(`/api/tasks/${taskId}/resources/${resourceId}/replacement-analysis`, { method: 'POST' });
 export const replaceResource = (taskId: string, resourceId: string, replacementUrl: string, replacementTitle?: string) => fetchApi(`/api/tasks/${taskId}/resources/${resourceId}/replace`, { method: 'POST', body: JSON.stringify({ replacement_url: replacementUrl, replacement_title: replacementTitle }) });
 export const replaceResourceWithExisting = (taskId: string, resourceId: string, newUrl: string, newTitle?: string) => fetchApi(`/api/tasks/${taskId}/resources/${resourceId}/replace`, { method: 'POST', body: JSON.stringify({ new_url: newUrl, new_title: newTitle }) });
