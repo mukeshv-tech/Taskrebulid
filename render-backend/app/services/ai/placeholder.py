@@ -27,6 +27,15 @@ class PlaceholderAIProvider(AIProvider):
             next_steps=[]
         )
 
-    async def analyze_replacement(self, original_resource: dict, task_name: str, existing_resources: list, task_graph: dict):
-        from .schemas import ReplacementAnalysisResult
-        return ReplacementAnalysisResult(original_resource_id=original_resource.get('id', ''), candidates=[])
+    async def analyze_replacement(self, original_resource: dict, task_name: str, existing_resources: list, task_graph: dict, existing_activity: list = None) -> Any:
+        from .schemas import ReplacementAnalysisResult, ReplacementCandidate
+        return ReplacementAnalysisResult(
+            original_resource_id=original_resource.get('id', 'unknown'),
+            candidates=[
+                ReplacementCandidate(
+                    resource_id=existing_resources[0]['id'] if existing_resources else 'none',
+                    reason="Placeholder suggestion",
+                    confidence=0.8
+                )
+            ]
+        )
