@@ -7,7 +7,7 @@ from .schemas import AIAnalysisInput, AIAnalysisResult, AIGraphAnalysisResult, A
 logger = logging.getLogger(__name__)
 
 class GroqProvider(AIProvider):
-    def __init__(self, api_key: str, model_name: str = "gpt-oss-120b"):
+    def __init__(self, api_key: str, model_name: str = "openai/gpt-oss-120b"):
         self.api_key = api_key
         self.model_name = model_name
         if self.api_key:
