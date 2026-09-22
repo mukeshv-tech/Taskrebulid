@@ -85,16 +85,16 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
     
     switch (r.check_status) {
       case 'available':
-        if (r.change_type === 'redirected') return <span style={{ color: '#d97706' }}>↪ Redirected</span>;
+        if (r.change_type === 'redirected') return <span style={{ color: '#d97706' }}>Redirected</span>;
         if (r.change_type === 'title_changed' || r.change_type === 'content_changed') return <span style={{ color: '#2563eb' }}>Changed</span>;
-        return <span style={{ color: '#16a34a' }}>✓ Available</span>;
+        return <span style={{ color: '#16a34a' }}>Available</span>;
       case 'not_found':
       case 'forbidden':
       case 'server_error':
       case 'timeout':
       case 'network_error':
       case 'invalid_url':
-        return <span style={{ color: '#ef4444' }}>⚠ Resource unavailable ({String(r.check_status)})</span>;
+        return <span style={{ color: '#ef4444' }}>Resource unavailable ({String(r.check_status)})</span>;
       default:
         return <span style={{ color: '#6b7280' }}>{String(r.check_status)}</span>;
     }
