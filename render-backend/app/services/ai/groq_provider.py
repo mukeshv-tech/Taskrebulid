@@ -145,3 +145,48 @@ Output must be valid JSON matching this schema exactly:
         except Exception as e:
             logger.error(f"Groq Resume API error: {e}")
             raise
+
+    async def analyze_replacement(self, original_resource: dict, task_name: str, existing_resources: list, task_graph: dict):
+        if not self.client:
+            raise ValueError("Groq API Key is not configured.")
+
+        from .schemas import ReplacementAnalysisResult
+        schema_json = json.dumps(ReplacementAnalysisResult.model_json_schema())
+
+        prompt = f"""
+You are an AI assistant helping a user find a replacement for a broken resource.
+Task Name: {task_name}
+
+Broken Resource:
+{json.dumps(original_resource, indent=2)}
+
+Existing Task Resources:
+{json.dumps(existing_resources, indent=2)}
+
+Task Graph:
+{json.dumps(task_graph, indent=2) if task_graph else "None"}
+
+INSTRUCTIONS:
+Analyze the broken resource and the existing resources. 
+Suggest up to 3 existing resources that could serve as a good replacement or alternative for the broken resource.
+Output must be valid JSON matching this schema exactly:
+{schema_json}
+"""
+        try:
+            response = await self.client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": "You are a precise data analysis assistant. Output only valid JSON matching the requested schema exactly, with no additional text or markdown formatting."},
+                    {"role": "user", "content": prompt}
+                ],
+                model=self.model_name,
+                response_format={"type": "json_object"}
+            )
+            
+            raw_text = response.choices[0].message.content
+            result_json = json.loads(raw_text)
+            return ReplacementAnalysisResult(**result_json)
+        except json.JSONDecodeError:
+            raise ValueError(f"Model failed to generate valid JSON. Raw output: {raw_text}")
+        except Exception as e:
+            logger.error(f"Groq Replacement Analysis API error: {e}")
+            raise
