@@ -78,3 +78,11 @@ export const deleteTaskResume = (taskId: string) => fetchApi(`/api/tasks/${taskI
 export const getTaskSnapshots = (taskId: string) => fetchApi(`/api/tasks/${taskId}/snapshots`);
 export const getTaskSnapshot = (taskId: string, snapshotId: string) => fetchApi(`/api/tasks/${taskId}/snapshots/${snapshotId}`);
 export const restoreWorkspace = (taskId: string, urls: string[]) => fetchApi(`/api/tasks/${taskId}/workspace/restore`, { method: 'POST', body: JSON.stringify({ urls }) });
+
+// Phase 7: Monitoring API
+export const getTaskResourcesStatus = (taskId: string) => fetchApi(/api/tasks//resources/status);
+export const getResourceChecks = (taskId: string, resourceId: string) => fetchApi(/api/tasks//resources//checks);
+export const triggerResourceCheck = (taskId: string, resourceId: string) => fetchApi(/api/tasks//resources//check, { method: 'POST' });
+export const analyzeResourceReplacement = (taskId: string, resourceId: string) => fetchApi(/api/tasks//resources//replacement-analysis, { method: 'POST' });
+export const replaceResource = (taskId: string, resourceId: string, replacementUrl: string, replacementTitle?: string) => fetchApi(/api/tasks//resources//replace, { method: 'POST', body: JSON.stringify({ replacement_url: replacementUrl, replacement_title: replacementTitle }) });
+export const replaceResourceWithExisting = (taskId: string, resourceId: string, targetResourceId: string) => fetchApi(/api/tasks//resources//replace, { method: 'POST', body: JSON.stringify({ target_resource_id: targetResourceId }) });

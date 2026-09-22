@@ -230,3 +230,47 @@ CREATE POLICY ""Users can delete their own task snapshots"" ON public.task_snaps
 CREATE INDEX idx_task_snapshots_task_id ON public.task_snapshots(task_id);
 CREATE INDEX idx_task_snapshots_user_id ON public.task_snapshots(user_id);
 CREATE INDEX idx_task_snapshots_task_created ON public.task_snapshots(task_id, created_at DESC);
+
+-- Phase 7: Resource Monitoring
+ALTER TABLE public.task_resources ADD COLUMN last_checked_at TIMESTAMPTZ;
+ALTER TABLE public.task_resources ADD COLUMN last_status_code INTEGER;
+ALTER TABLE public.task_resources ADD COLUMN last_final_url TEXT;
+ALTER TABLE public.task_resources ADD COLUMN last_title TEXT;
+ALTER TABLE public.task_resources ADD COLUMN last_content_hash TEXT;
+ALTER TABLE public.task_resources ADD COLUMN monitoring_enabled BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE public.task_resources ADD COLUMN last_check_status TEXT;
+ALTER TABLE public.task_resources ADD COLUMN last_change_detected_at TIMESTAMPTZ;
+ALTER TABLE public.task_resources ADD COLUMN consecutive_failure_count INTEGER DEFAULT 0;
+ALTER TABLE public.task_resources ADD COLUMN replaced_at TIMESTAMPTZ;
+ALTER TABLE public.task_resources ADD COLUMN replaced_by_resource_id UUID REFERENCES public.task_resources(id);
+
+CREATE TABLE public.resource_checks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    resource_id UUID NOT NULL REFERENCES public.task_resources(id) ON DELETE CASCADE,
+    task_id UUID NOT NULL REFERENCES public.tasks(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    requested_url TEXT NOT NULL,
+    final_url TEXT,
+    status_code INTEGER,
+    title TEXT,
+    content_hash TEXT,
+    check_status TEXT NOT NULL,
+    change_detected BOOLEAN NOT NULL DEFAULT false,
+    change_type TEXT,
+    change_severity TEXT,
+    error_message TEXT,
+    checked_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.resource_checks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY ""Users can view their own resource checks"" ON public.resource_checks FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY ""Users can insert their own resource checks"" ON public.resource_checks FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY ""Users can delete their own resource checks"" ON public.resource_checks FOR DELETE USING (auth.uid() = user_id);
+
+CREATE INDEX idx_resource_checks_resource_id ON public.resource_checks(resource_id);
+CREATE INDEX idx_resource_checks_task_id ON public.resource_checks(task_id);
+CREATE INDEX idx_resource_checks_user_id ON public.resource_checks(user_id);
+CREATE INDEX idx_resource_checks_checked_at ON public.resource_checks(checked_at DESC);
+CREATE INDEX idx_resource_checks_change ON public.resource_checks(change_detected);
+
