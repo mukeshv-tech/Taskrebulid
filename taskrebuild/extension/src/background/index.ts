@@ -123,12 +123,8 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
 // Listen for messages from popup to enable/disable monitor
 chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
   if (message.type === 'ENABLE_RESOURCE_MONITOR') {
-    chrome.alarms.get('resourceMonitor', (alarm) => {
-      if (!alarm) {
-        chrome.alarms.create('resourceMonitor', { periodInMinutes: 0.5 });
-        console.log('Resource Monitor alarm created (60 min)');
-      }
-    });
+    chrome.alarms.create('resourceMonitor', { periodInMinutes: 0.5 });
+    console.log('Resource Monitor alarm created (30s)');
   }
 });
 
