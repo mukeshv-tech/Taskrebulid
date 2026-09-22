@@ -294,11 +294,19 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
 
         <h3 style={{ margin: 0, color: '#111827' }}>RESOURCE ALERTS</h3>
-
-        {!loading && (
-
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button 
-
+            onClick={fetchResources}
+            disabled={loading}
+            style={{ 
+              fontSize: '11px', padding: '4px 10px', borderRadius: '12px', border: '1px solid #d1d5db', cursor: 'pointer',
+              background: 'white', color: '#4b5563', fontWeight: 600
+            }}
+          >
+            {loading ? '↻...' : '↻ Refresh'}
+          </button>
+        {!loading && (
+          <button 
             onClick={handleToggleAutoMonitor}
 
             style={{ 
@@ -316,11 +324,9 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
           >
 
             {autoMonitor ? 'Auto-Monitor: ON' : 'Auto-Monitor: OFF'}
-
           </button>
-
         )}
-
+        </div>
       </div>
 
       {error && <p style={{ color: 'red', fontSize: '12px' }}>{String(error)}</p>}
