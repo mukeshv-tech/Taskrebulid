@@ -358,9 +358,9 @@ const App: React.FC = () => {
                       <li key={act.id} style={{ marginBottom: '5px', paddingBottom: '5px', borderBottom: '1px solid #eee', fontSize: '11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <span style={{ background: '#e5e7eb', padding: '2px 4px', borderRadius: '3px', marginRight: '5px' }}>
-                            {act.event_type}
+                            {String(act.event_type)}
                           </span>
-                          {act.title ? <strong>{act.title}</strong> : <span style={{ wordBreak: 'break-all' }}>{act.url}</span>}
+                          {act.title ? <strong>{String(act.title)}</strong> : <span style={{ wordBreak: 'break-all' }}>{act.url}</span>}
                         </div>
                         <button onClick={() => handleDeleteActivity(act.id)} style={{ padding: '2px 5px', fontSize: '10px' }}>x</button>
                       </li>
@@ -399,7 +399,7 @@ const App: React.FC = () => {
               <h5 style={{ margin: '10px 0 5px 0' }}>Topics</h5>
               <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
                 {aiAnalysis.result.topics?.map((t: any, i: number) => (
-                  <li key={i}>{t.name} (Confidence: {t.confidence})</li>
+                  <li key={i}>{String(t.name)} (Confidence: {String(t.confidence)})</li>
                 ))}
               </ul>
               
@@ -409,9 +409,9 @@ const App: React.FC = () => {
                   const res = resources.find(rx => rx.id === r.resource_id);
                   return (
                     <li key={i}>
-                      <strong>{res ? res.title || res.url : r.resource_id}</strong> - Relevance: {r.relevance}
+                      <strong>{String(res ? res.title || res.url : r.resource_id)}</strong> - Relevance: {String(r.relevance)}
                       <br/>
-                      <span style={{ color: '#6b7280' }}>{r.reason}</span>
+                      <span style={{ color: '#6b7280' }}>{String(r.reason)}</span>
                     </li>
                   )
                 })}
@@ -420,7 +420,7 @@ const App: React.FC = () => {
               <h5 style={{ margin: '10px 0 5px 0' }}>Suggested Next Steps</h5>
               <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
                 {aiAnalysis.result.suggested_next_steps?.map((step: string, i: number) => (
-                  <li key={i}>{step}</li>
+                  <li key={i}>{String(step)}</li>
                 ))}
               </ul>
             </div>

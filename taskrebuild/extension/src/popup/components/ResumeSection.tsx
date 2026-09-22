@@ -155,7 +155,7 @@ const ResumeSection: React.FC<ResumeSectionProps> = ({ taskId }) => {
       <h3 style={{ marginTop: 0, color: '#374151' }}>WHERE YOU LEFT OFF</h3>
       
       {loading && <p style={{ color: '#6b7280', fontStyle: 'italic' }}>Refreshing...</p>}
-      {error && <div style={{ color: 'red', fontSize: '12px', marginBottom: '10px' }}>{error}</div>}
+      {error && <div style={{ color: 'red', fontSize: '12px', marginBottom: '10px' }}>{String(error)}</div>}
       
       {analysis && (
         <>
@@ -214,7 +214,7 @@ const ResumeSection: React.FC<ResumeSectionProps> = ({ taskId }) => {
                   {snapshots.map(s => (
                     <li key={s.id} style={{ marginBottom: '10px', padding: '10px', backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '4px' }}>
                       <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '5px' }}>{new Date(s.created_at).toLocaleString()}</div>
-                      <div style={{ fontSize: '13px' }}>{s.summary}</div>
+                      <div style={{ fontSize: '13px' }}>{String(s.summary)}</div>
                     </li>
                   ))}
                 </ul>
