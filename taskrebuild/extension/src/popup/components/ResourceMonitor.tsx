@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getTaskResourcesStatus, triggerResourceCheck, analyzeResourceReplacement, replaceResourceWithExisting, getTaskResources } from '../../lib/api';
+import { getTaskResourcesStatus, triggerResourceCheck, analyzeResourceReplacement, replaceResourceWithExisting } from '../../lib/api';
 
 interface ResourceMonitorProps {
   taskId: string;
@@ -81,9 +81,9 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
 
   const getStatusDisplay = (r: any) => {
     if (r.replaced_by_resource_id) return <span style={{ color: '#6b7280' }}>Replaced</span>;
-    if (!r.last_check_status) return <span style={{ color: '#6b7280' }}>Never checked</span>;
+    if (!r.check_status) return <span style={{ color: '#6b7280' }}>Never checked</span>;
     
-    switch (r.last_check_status) {
+    switch (r.check_status) {
       case 'available':
         if (r.change_type === 'redirected') return <span style={{ color: '#d97706' }}>↪ Redirected</span>;
         if (r.change_type === 'title_changed' || r.change_type === 'content_changed') return <span style={{ color: '#2563eb' }}>Changed</span>;
@@ -94,14 +94,14 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
       case 'timeout':
       case 'network_error':
       case 'invalid_url':
-        return <span style={{ color: '#ef4444' }}>⚠ Resource unavailable ({r.last_check_status})</span>;
+        return <span style={{ color: '#ef4444' }}>⚠ Resource unavailable ({r.check_status})</span>;
       default:
-        return <span style={{ color: '#6b7280' }}>{r.last_check_status}</span>;
+        return <span style={{ color: '#6b7280' }}>{r.check_status}</span>;
     }
   };
 
   const needsAttention = (r: any) => {
-    return !r.replaced_by_resource_id && r.last_check_status && r.last_check_status !== 'available';
+    return !r.replaced_by_resource_id && r.check_status && r.check_status !== 'available';
   };
 
   const activeResources = resources.filter(r => !r.replaced_by_resource_id);
