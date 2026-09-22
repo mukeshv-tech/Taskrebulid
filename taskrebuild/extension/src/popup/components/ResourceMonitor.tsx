@@ -94,9 +94,9 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
       case 'timeout':
       case 'network_error':
       case 'invalid_url':
-        return <span style={{ color: '#ef4444' }}>⚠ Resource unavailable ({r.check_status})</span>;
+        return <span style={{ color: '#ef4444' }}>⚠ Resource unavailable ({String(r.check_status)})</span>;
       default:
-        return <span style={{ color: '#6b7280' }}>{r.check_status}</span>;
+        return <span style={{ color: '#6b7280' }}>{String(r.check_status)}</span>;
     }
   };
 
@@ -113,7 +113,7 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
   return (
     <div style={{ marginBottom: '20px', padding: '15px', border: '1px solid #e5e7eb', borderRadius: '8px', backgroundColor: '#fff' }}>
       <h3 style={{ marginTop: 0, color: '#111827' }}>RESOURCE ALERTS</h3>
-      {error && <p style={{ color: 'red', fontSize: '12px' }}>{error}</p>}
+      {error && <p style={{ color: 'red', fontSize: '12px' }}>{String(error)}</p>}
       
       {loading && resources.length === 0 && <p style={{ fontSize: '12px', color: '#6b7280' }}>Loading resources...</p>}
       
@@ -122,8 +122,8 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
           <div key={r.id} style={{ border: '1px solid #f3f4f6', padding: '10px', borderRadius: '4px', backgroundColor: needsAttention(r) ? '#fef2f2' : '#f9fafb' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <div style={{ overflow: 'hidden' }}>
-                <div style={{ fontWeight: '500', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.title || r.url}</div>
-                <a href={r.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#6b7280', textDecoration: 'none', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.url}</a>
+                <div style={{ fontWeight: '500', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{String(r.title || r.url)}</div>
+                <a href={String(r.url)} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#6b7280', textDecoration: 'none', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{String(r.url)}</a>
               </div>
               <button 
                 onClick={() => handleCheckNow(r.id)} 
@@ -169,8 +169,8 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
                           const candRes = resources.find(res => res.id === cand.resource_id);
                           return (
                             <li key={idx} style={{ marginBottom: '5px' }}>
-                              <strong>{candRes?.title || cand.resource_id}</strong> (Confidence: {cand.confidence})
-                              <br /><span style={{ color: '#6b7280' }}>{cand.reason}</span>
+                              <strong>{String(candRes?.title || cand.resource_id)}</strong> (Confidence: {String(cand.confidence)})
+                              <br /><span style={{ color: '#6b7280' }}>{String(cand.reason)}</span>
                             </li>
                           );
                         })}
