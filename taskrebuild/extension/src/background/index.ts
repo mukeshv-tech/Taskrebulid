@@ -125,7 +125,7 @@ chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
   if (message.type === 'ENABLE_RESOURCE_MONITOR') {
     chrome.alarms.get('resourceMonitor', (alarm) => {
       if (!alarm) {
-        chrome.alarms.create('resourceMonitor', { periodInMinutes: 60 });
+        chrome.alarms.create('resourceMonitor', { periodInMinutes: 2 });
         console.log('Resource Monitor alarm created (60 min)');
       }
     });
@@ -134,7 +134,7 @@ chrome.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
 
 // Create alarm on install if active task requires it (we just start it globally for safety)
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.alarms.create('resourceMonitor', { periodInMinutes: 60 });
+  chrome.alarms.create('resourceMonitor', { periodInMinutes: 2 });
 });
 
 // Alarm Listener
