@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from app.database import get_supabase
+from app.supabase import get_supabase
 from app.services.resource_monitor import ResourceMonitor
 
 logger = logging.getLogger(__name__)
