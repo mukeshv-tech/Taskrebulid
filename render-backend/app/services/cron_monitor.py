@@ -6,10 +6,12 @@ from app.services.resource_monitor import ResourceMonitor
 logger = logging.getLogger(__name__)
 
 async def run_cron_monitor():
+    # Instantiate the Supabase client ONCE to prevent connection pooling issues and context cancellations
+    supabase = get_supabase()
+    
     while True:
         try:
             logger.info("Running backend cron monitor...")
-            supabase = get_supabase()
             
             # 1. Get all tasks with auto_monitor_enabled = True
             tasks_resp = supabase.table('tasks').select('id, user_id').eq('auto_monitor_enabled', True).execute()
