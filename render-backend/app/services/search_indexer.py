@@ -10,7 +10,7 @@ class EmbeddingProvider:
         if not api_key:
             raise ValueError("GEMINI_API_KEY environment variable is not set")
         genai.configure(api_key=api_key)
-        self.model_name = "models/embedding-001"
+        self.model_name = "models/gemini-embedding-001"
 
     def generate_embedding(self, text: str) -> List[float]:
         try:
