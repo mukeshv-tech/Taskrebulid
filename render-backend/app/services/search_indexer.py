@@ -10,14 +10,14 @@ class EmbeddingProvider:
         if not api_key:
             raise ValueError("GEMINI_API_KEY environment variable is not set")
         genai.configure(api_key=api_key)
-        self.model_name = "models/text-embedding-004"
+        self.model_name = "models/embedding-001"
 
     def generate_embedding(self, text: str) -> List[float]:
         try:
             result = genai.embed_content(
                 model=self.model_name,
                 content=text,
-                output_dimensionality=768,
+                
                 task_type="retrieval_document"
             )
             return result['embedding']
