@@ -7,21 +7,22 @@ from app.auth import get_current_user
 from app.services.search_indexer import search_indexer
 import google.generativeai as genai
 
-router = APIRouter(prefix="/api/search", tags=["search"])
+router = APIRouter(tags=["search"])
 
 class ExplainRequest(BaseModel):
     query: str
     result_ids: List[str]
 
-@router.get("")
+@router.get("/api/search")
 async def search_documents(
-    query: str,
+    q: str,
+    task_id: Optional[str] = None,
     match_count: int = 10,
     match_threshold: float = 0.5,
     user: dict = Depends(get_current_user)
 ):
     try:
-        query_embedding = search_indexer.embedding_provider.generate_embedding(query)
+        query_embedding = search_indexer.embedding_provider.generate_embedding(q)
         if not query_embedding:
             raise HTTPException(status_code=500, detail="Failed to generate query embedding")
         
@@ -29,7 +30,7 @@ async def search_documents(
             "hybrid_search_documents",
             {
                 "query_embedding": query_embedding,
-                "query_text": query,
+                "query_text": q,
                 "match_count": match_count,
                 "match_threshold": match_threshold,
                 "p_user_id": user["id"]
@@ -39,10 +40,12 @@ async def search_documents(
         # Log search history
         get_supabase().table("search_history").insert({
             "user_id": user["id"],
-            "query": query
+            "query": q
         }).execute()
 
         results = response.data
+        if task_id:
+            results = [r for r in results if r.get("task_id") == task_id]
         
         # Group results by task
         grouped_results = {}
@@ -56,7 +59,7 @@ async def search_documents(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/suggestions")
+@router.get("/api/search/suggestions")
 async def search_suggestions(
     query: str,
     limit: int = 5,
@@ -75,7 +78,7 @@ async def search_suggestions(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/explain")
+@router.post("/api/search/explain")
 async def explain_results(
     request: ExplainRequest,
     user: dict = Depends(get_current_user)
