@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchApi, getTaskResources, createTaskResource, deleteTaskResource, getTaskActivity, analyzeTask, getTaskAIAnalyses, deleteTaskActivity, deleteTaskAIAnalysis, clearTaskActivity } from '../lib/api';
 import GraphTab from './components/GraphTab';
+import SearchTab from './components/SearchTab';
 import ResumeSection from './components/ResumeSection';
 import ResourceMonitor from './components/ResourceMonitor';
 
@@ -427,7 +428,10 @@ const App: React.FC = () => {
           )}
         </div>
         
+        
+        <SearchTab taskId={selectedTask.id} />
         <GraphTab taskId={selectedTask.id} />
+
         
         <button className="delete-task-btn" onClick={(e) => handleDeleteTask(e, selectedTask.id)} style={{ marginTop: '20px' }}>Delete Task</button>
       </div>
@@ -454,7 +458,14 @@ const App: React.FC = () => {
         )}
       </div>
       
+      
+      <SearchTab onNavigateToTask={(tid) => {
+        const t = tasks.find(x => x.id === tid);
+        if (t) setSelectedTask(t);
+      }} />
+      
       <div className="tasks-section">
+
         <h3>My Tasks</h3>
         <ul className="task-list">
           {tasks.map(t => (

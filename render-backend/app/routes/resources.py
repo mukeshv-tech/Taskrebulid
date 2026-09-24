@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel, HttpUrl
 from app.auth import get_current_user
 from app.services.resource_service import create_resource, list_resources, delete_resource
 from urllib.parse import urlparse
+from app.services.search_indexer import search_indexer
 
 router = APIRouter()
 
@@ -21,7 +22,7 @@ def get_task_resources(task_id: str, user = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=f"Failed to fetch resources: {str(e)}")
 
 @router.post("/api/tasks/{task_id}/resources")
-def add_task_resource(task_id: str, resource: ResourceCreate, user = Depends(get_current_user)):
+def add_task_resource(task_id: str, resource: ResourceCreate, background_tasks: BackgroundTasks, user = Depends(get_current_user)):
     try:
         # Simple URL validation
         parsed = urlparse(resource.url)
@@ -29,6 +30,19 @@ def add_task_resource(task_id: str, resource: ResourceCreate, user = Depends(get
             raise HTTPException(status_code=400, detail="Invalid URL format")
             
         new_resource = create_resource(task_id, user.id, resource.url, resource.title)
+        
+        # Trigger background indexing
+        background_tasks.add_task(
+            search_indexer.index_document,
+            user_id=user.id,
+            task_id=task_id,
+            source_type="resource",
+            source_id=new_resource["id"],
+            title=new_resource.get("title", ""),
+            content=new_resource.get("url", ""),
+            metadata={"url": new_resource.get("url", "")}
+        )
+        
         return new_resource
     except ValueError as e:
         if str(e) == "Resource already exists in this task":
