@@ -31,7 +31,8 @@ async def search_documents(
                 "query_embedding": query_embedding,
                 "query_text": query,
                 "match_count": match_count,
-                "match_threshold": match_threshold
+                "match_threshold": match_threshold,
+                "p_user_id": user["id"]
             }
         ).execute()
 
