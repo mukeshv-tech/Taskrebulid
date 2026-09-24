@@ -22,7 +22,7 @@ class EmbeddingProvider:
             return result['embedding']
         except Exception as e:
             print(f"Error generating embedding: {e}")
-            return []
+            raise ValueError(f"Error from Gemini: {e}")
 
 
 class SearchIndexer:
