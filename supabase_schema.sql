@@ -265,3 +265,82 @@ CREATE INDEX idx_resource_checks_task_id ON public.resource_checks(task_id);
 -- Phase 7: Automated Cron Monitoring
 ALTER TABLE public.tasks ADD COLUMN auto_monitor_enabled boolean DEFAULT false;
 ALTER TABLE public.task_resources ADD COLUMN is_ignored boolean DEFAULT false;
+-- Phase 8: Search & Discovery
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE public.search_documents (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    task_id UUID NOT NULL REFERENCES public.tasks(id) ON DELETE CASCADE,
+    source_type TEXT NOT NULL,
+    source_id UUID NOT NULL,
+    title TEXT,
+    content TEXT,
+    metadata JSONB,
+    embedding vector(768),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE(source_type, source_id)
+);
+
+CREATE TABLE public.search_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    query TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.search_documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.search_history ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY ""Users can view their own search documents"" ON public.search_documents FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY ""Users can insert their own search documents"" ON public.search_documents FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY ""Users can update their own search documents"" ON public.search_documents FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY ""Users can delete their own search documents"" ON public.search_documents FOR DELETE USING (auth.uid() = user_id);
+
+CREATE POLICY ""Users can view their own search history"" ON public.search_history FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY ""Users can insert their own search history"" ON public.search_history FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY ""Users can delete their own search history"" ON public.search_history FOR DELETE USING (auth.uid() = user_id);
+
+CREATE INDEX idx_search_documents_user_id ON public.search_documents(user_id);
+CREATE INDEX idx_search_documents_task_id ON public.search_documents(task_id);
+CREATE INDEX idx_search_documents_embedding ON public.search_documents USING hnsw (embedding vector_cosine_ops);
+
+CREATE OR REPLACE FUNCTION hybrid_search_documents(
+    query_embedding vector(768),
+    query_text text,
+    match_count int,
+    match_threshold float
+)
+RETURNS TABLE (
+    id uuid,
+    task_id uuid,
+    source_type text,
+    source_id uuid,
+    title text,
+    content text,
+    metadata jsonb,
+    similarity float
+)
+LANGUAGE plpgsql
+AS 
+BEGIN
+    RETURN QUERY
+    SELECT
+        d.id,
+        d.task_id,
+        d.source_type,
+        d.source_id,
+        d.title,
+        d.content,
+        d.metadata,
+        1 - (d.embedding <=> query_embedding) AS similarity
+    FROM search_documents d
+    WHERE 
+        (auth.uid() = d.user_id) AND
+        (1 - (d.embedding <=> query_embedding) > match_threshold) AND
+        (query_text IS NULL OR d.title ILIKE '%' || query_text || '%' OR d.content ILIKE '%' || query_text || '%')
+    ORDER BY similarity DESC
+    LIMIT match_count;
+END;
+;
