@@ -59,6 +59,48 @@ async def search_documents(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.get("/api/search/backfill")
+async def backfill_search_documents():
+    try:
+        supabase = get_supabase()
+        tasks = supabase.table("tasks").select("*").execute()
+        resources = supabase.table("task_resources").select("*").execute()
+        
+        count = 0
+        
+        # Index tasks
+        if tasks.data:
+            for task in tasks.data:
+                success = search_indexer.index_document(
+                    user_id=task.get("user_id"),
+                    task_id=task.get("id"),
+                    source_type="task",
+                    source_id=task.get("id"),
+                    title=task.get("name"),
+                    content=task.get("description", "") or ""
+                )
+                if success:
+                    count += 1
+                    
+        # Index resources
+        if resources.data:
+            for res in resources.data:
+                success = search_indexer.index_document(
+                    user_id=res.get("user_id") or tasks.data[0].get("user_id"), # fallback if no user_id on resource
+                    task_id=res.get("task_id"),
+                    source_type="resource",
+                    source_id=res.get("id"),
+                    title=res.get("title") or res.get("url"),
+                    content=res.get("snippet", "") or ""
+                )
+                if success:
+                    count += 1
+                    
+        return {"status": "success", "indexed_count": count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/api/search/suggestions")
 async def search_suggestions(
     query: str,
