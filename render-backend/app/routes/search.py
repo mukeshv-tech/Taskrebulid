@@ -19,7 +19,7 @@ async def search_documents(
     task_id: Optional[str] = None,
     match_count: int = 10,
     match_threshold: float = 0.5,
-    user: dict = Depends(get_current_user)
+    user = Depends(get_current_user)
 ):
     try:
         query_embedding = search_indexer.embedding_provider.generate_embedding(q)
@@ -33,13 +33,13 @@ async def search_documents(
                 "query_text": q,
                 "match_count": match_count,
                 "match_threshold": match_threshold,
-                "p_user_id": user["id"]
+                "p_user_id": user.id
             }
         ).execute()
 
         # Log search history
         get_supabase().table("search_history").insert({
-            "user_id": user["id"],
+            "user_id": user.id,
             "query": q
         }).execute()
 
@@ -63,14 +63,14 @@ async def search_documents(
 async def search_suggestions(
     query: str,
     limit: int = 5,
-    user: dict = Depends(get_current_user)
+    user = Depends(get_current_user)
 ):
     try:
         # Lightweight ILIKE search for autocomplete
         response = get_supabase().table("search_documents") \
             .select("id, title, source_type") \
             .ilike("title", f"%{query}%") \
-            .eq("user_id", user["id"]) \
+            .eq("user_id", user.id) \
             .limit(limit) \
             .execute()
         
@@ -81,14 +81,14 @@ async def search_suggestions(
 @router.post("/api/search/explain")
 async def explain_results(
     request: ExplainRequest,
-    user: dict = Depends(get_current_user)
+    user = Depends(get_current_user)
 ):
     try:
         # Fetch the documents
         response = get_supabase().table("search_documents") \
             .select("title, content, source_type") \
             .in_("id", request.result_ids) \
-            .eq("user_id", user["id"]) \
+            .eq("user_id", user.id) \
             .execute()
         
         documents = response.data
