@@ -1,7 +1,7 @@
 import os
 from typing import Dict, Any, List
 import google.generativeai as genai
-from app.supabase import supabase
+from app.supabase import get_supabase
 from pydantic import BaseModel
 
 class EmbeddingProvider:
@@ -60,7 +60,7 @@ class SearchIndexer:
         }
 
         try:
-            response = supabase.table("search_documents").upsert(
+            response = get_supabase().table("search_documents").upsert(
                 data, on_conflict="source_type,source_id"
             ).execute()
             return len(response.data) > 0
