@@ -47,7 +47,7 @@ class SearchIndexer:
         embedding = self.embedding_provider.generate_embedding(text_to_embed)
         
         if not embedding:
-            return False
+            raise Exception("Gemini embedding returned empty")
 
         data = {
             "user_id": user_id,
@@ -66,7 +66,6 @@ class SearchIndexer:
             ).execute()
             return len(response.data) > 0
         except Exception as e:
-            print(f"Error indexing document: {e}")
-            return False
+            raise Exception(f"Supabase upsert failed: {e}")
 
 search_indexer = SearchIndexer()

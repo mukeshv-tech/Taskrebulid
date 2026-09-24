@@ -68,36 +68,47 @@ async def backfill_search_documents():
         resources = supabase.table("task_resources").select("*").execute()
         
         count = 0
+        errors = []
         
         # Index tasks
         if tasks.data:
             for task in tasks.data:
-                success = search_indexer.index_document(
-                    user_id=task.get("user_id"),
-                    task_id=task.get("id"),
-                    source_type="task",
-                    source_id=task.get("id"),
-                    title=task.get("name"),
-                    content=task.get("description", "") or ""
-                )
-                if success:
-                    count += 1
+                try:
+                    success = search_indexer.index_document(
+                        user_id=task.get("user_id"),
+                        task_id=task.get("id"),
+                        source_type="task",
+                        source_id=task.get("id"),
+                        title=task.get("name") or "Untitled",
+                        content=task.get("description", "") or ""
+                    )
+                    if success:
+                        count += 1
+                    else:
+                        errors.append(f"Task {task.get('id')} failed (returned False)")
+                except Exception as ex:
+                    errors.append(f"Task {task.get('id')} exception: {str(ex)}")
                     
         # Index resources
         if resources.data:
             for res in resources.data:
-                success = search_indexer.index_document(
-                    user_id=res.get("user_id") or tasks.data[0].get("user_id"), # fallback if no user_id on resource
-                    task_id=res.get("task_id"),
-                    source_type="resource",
-                    source_id=res.get("id"),
-                    title=res.get("title") or res.get("url"),
-                    content=res.get("snippet", "") or ""
-                )
-                if success:
-                    count += 1
+                try:
+                    success = search_indexer.index_document(
+                        user_id=res.get("user_id") or tasks.data[0].get("user_id") if tasks.data else None,
+                        task_id=res.get("task_id"),
+                        source_type="resource",
+                        source_id=res.get("id"),
+                        title=res.get("title") or res.get("url") or "Untitled",
+                        content=res.get("snippet", "") or ""
+                    )
+                    if success:
+                        count += 1
+                    else:
+                        errors.append(f"Resource {res.get('id')} failed (returned False)")
+                except Exception as ex:
+                    errors.append(f"Resource {res.get('id')} exception: {str(ex)}")
                     
-        return {"status": "success", "indexed_count": count}
+        return {"status": "success", "indexed_count": count, "tasks_found": len(tasks.data) if tasks.data else 0, "resources_found": len(resources.data) if resources.data else 0, "errors": errors}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
