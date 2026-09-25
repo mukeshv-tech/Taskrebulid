@@ -11,3 +11,5 @@ beautifulsoup4==4.12.3
 
 onnxruntime>=1.15.0
 tokenizers>=0.13.3
+
+google-generativeai>=0.8.6
