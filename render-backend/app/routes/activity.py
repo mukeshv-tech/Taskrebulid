@@ -19,6 +19,7 @@ class ActivityBatch(BaseModel):
     events: List[ActivityEvent]
 
 from fastapi import BackgroundTasks
+import time
 
 def index_activities_bg(user_id: str, task_id: str, inserted_events: List[Dict[str, Any]]):
     from app.services.search_indexer import search_indexer
@@ -36,6 +37,7 @@ def index_activities_bg(user_id: str, task_id: str, inserted_events: List[Dict[s
             )
         except Exception as e:
             print(f"Background activity indexing failed: {e}")
+        time.sleep(0.2) # Yield CPU
 
 @router.post("/api/tasks/{task_id}/activity")
 def add_task_activity(task_id: str, batch: ActivityBatch, background_tasks: BackgroundTasks, user = Depends(get_current_user)):

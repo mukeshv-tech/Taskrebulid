@@ -61,6 +61,7 @@ async def search_documents(
 
 
 from fastapi import BackgroundTasks
+import time
 
 def run_backfill_bg():
     try:
@@ -86,6 +87,7 @@ def run_backfill_bg():
                         content=task.get("description", "") or ""
                     )
                 except: pass
+                time.sleep(0.2) # Yield CPU to prevent freezing server
 
         # Index resources
         if resources.data:
@@ -100,6 +102,7 @@ def run_backfill_bg():
                         content=res.get("url") or ""
                     )
                 except: pass
+                time.sleep(0.2)
 
         # Index activities
         if activities.data:
@@ -116,6 +119,7 @@ def run_backfill_bg():
                         content=act.get("url") or ""
                     )
                 except: pass
+                time.sleep(0.2)
     except Exception as e:
         print(f"Backfill failed: {e}")
 
