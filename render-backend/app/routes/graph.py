@@ -67,6 +67,8 @@ async def analyze_task_graph(task_id: str, user = Depends(get_current_user)):
     act_res = supabase.table("task_activity").select("*").eq("task_id", task_id).order("timestamp", desc=True).limit(settings.AI_ACTIVITY_LIMIT).execute()
     activity = [TaskActivityInput(id=a["id"], event_type=a["event_type"], url=a.get("url"), title=a.get("title"), timestamp=a["timestamp"]) for a in act_res.data]
     
+    print(f"DEBUG: Found {len(resources)} resources and {len(activity)} activities for task {task_id}")
+    
     input_data = AIAnalysisInput(
         task_id=task_id,
         task_name=task_name,
