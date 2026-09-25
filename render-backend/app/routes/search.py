@@ -60,19 +60,20 @@ async def search_documents(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
 from fastapi import BackgroundTasks
 import time
 
 def run_backfill_bg():
     try:
+        from app.supabase import get_supabase
+        from app.services.search_indexer import search_indexer
         supabase = get_supabase()
         tasks = supabase.table("tasks").select("*").execute()
         resources = supabase.table("task_resources").select("*").execute()
         
         # Paginate activities if huge
         activities = supabase.table("task_activity").select("*").execute()
-        
-        count = 0
         
         # Index tasks
         if tasks.data:
@@ -127,96 +128,3 @@ def run_backfill_bg():
 async def backfill_search_documents(background_tasks: BackgroundTasks):
     background_tasks.add_task(run_backfill_bg)
     return {"status": "success", "message": "Backfill has been started in the background. Check your /api/metrics dashboard in a few minutes to see the Vectors count increase!"}
-
-        # Index resources
-        if resources.data:
-            for res in resources.data:
-                try:
-                    success = search_indexer.index_document(
-                        user_id=res.get("user_id"),
-                        task_id=res.get("task_id"),
-                        source_type="resource",
-                        source_id=res.get("id"),
-                        title=res.get("title") or res.get("url") or "Untitled",
-                        content=res.get("url") or ""
-                    )
-                    if success: count += 1
-                except Exception as ex:
-                    errors.append(f"Resource {res.get('id')} failed: {str(ex)}")
-
-        # Index activities
-        if activities.data:
-            for act in activities.data:
-                # Only index if it has a title or URL
-                if not act.get("title") and not act.get("url"):
-                    continue
-                try:
-                    success = search_indexer.index_document(
-                        user_id=act.get("user_id"),
-                        task_id=act.get("task_id"),
-                        source_type="activity",
-                        source_id=act.get("id"),
-                        title=act.get("title") or "Browser Activity",
-                        content=act.get("url") or ""
-                    )
-                    if success: count += 1
-                except Exception as ex:
-                    errors.append(f"Activity {act.get('id')} failed: {str(ex)}")
-                    
-        return {"status": "success", "indexed": count, "errors": errors}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-@router.get("/api/search/suggestions")
-async def search_suggestions(
-    query: str,
-    limit: int = 5,
-    user = Depends(get_current_user)
-):
-    try:
-        # Lightweight ILIKE search for autocomplete
-        response = get_supabase().table("search_documents") \
-            .select("id, title, source_type") \
-            .ilike("title", f"%{query}%") \
-            .eq("user_id", user.id) \
-            .limit(limit) \
-            .execute()
-        
-        return {"suggestions": response.data}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/api/search/explain")
-async def explain_results(
-    request: ExplainRequest,
-    user = Depends(get_current_user)
-):
-    try:
-        # Fetch the documents
-        response = get_supabase().table("search_documents") \
-            .select("title, content, source_type") \
-            .in_("id", request.result_ids) \
-            .eq("user_id", user.id) \
-            .execute()
-        
-        documents = response.data
-        if not documents:
-            return {"explanation": "No documents found or access denied."}
-            
-        context = "\n\n".join([f"Title: {doc['title']} (Type: {doc['source_type']})\nContent: {doc['content']}" for doc in documents])
-        
-        prompt = f"""
-        The user searched for: "{request.query}"
-        
-        Here are the top search results:
-        {context}
-        
-        Please explain briefly why these results are relevant to the user's query, highlighting the key connections. Keep it concise.
-        """
-        
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        ai_response = model.generate_content(prompt)
-        
-        return {"explanation": ai_response.text}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
