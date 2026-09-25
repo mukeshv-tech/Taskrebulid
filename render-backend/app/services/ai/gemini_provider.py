@@ -159,6 +159,7 @@ Respond strictly in valid JSON without markdown wrapping.
             )
             
             result_text = response.text
+            logger.error("RAW GEMINI GRAPH OUTPUT: " + result_text)
             result_json = json.loads(result_text)
             
             return AIResumeResult(**result_json)

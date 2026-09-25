@@ -81,4 +81,11 @@ async def analyze_task_graph(task_id: str, user = Depends(get_current_user)):
     # Save to graph
     save_ai_graph(task_id, user.id, [n.model_dump() for n in result.nodes], [e.model_dump() for e in result.edges])
     
-    return {"status": "success"}
+    provider_name = type(ai_service.providers.get(settings.GRAPH_AI_PROVIDER, ai_service.placeholder)).__name__
+    
+    return {
+        "status": "success",
+        "provider_used": provider_name,
+        "nodes_extracted": len(result.nodes),
+        "edges_extracted": len(result.edges)
+    }
