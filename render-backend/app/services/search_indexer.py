@@ -1,32 +1,6 @@
 import os
 from typing import Dict, Any, List
-import google.generativeai as genai
 from app.supabase import get_supabase
-from pydantic import BaseModel
-
-class EmbeddingProvider:
-    def __init__(self):
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY environment variable is not set")
-        genai.configure(api_key=api_key)
-        self.model_name = "models/gemini-embedding-001"
-
-    def generate_embedding(self, text: str) -> List[float]:
-        try:
-            result = genai.embed_content(
-                model=self.model_name,
-                content=text,
-                
-                task_type="retrieval_document"
-            )
-            return result['embedding']
-        except Exception as e:
-            print(f"Error generating embedding: {e}")
-            raise ValueError(f"Error from Gemini: {e}")
-
-
-
 import numpy as np
 import onnxruntime as ort
 from tokenizers import Tokenizer
@@ -56,27 +30,20 @@ class ONNXEmbeddingProvider:
         }
         
         outputs = self.session.run(None, ort_inputs)
-        # Assuming the first output is the sequence output or pooled output.
-        # If sequence output, we mean pool. If pooled output, we just take it.
         out = outputs[0][0]
         if len(out.shape) == 2:
-            # Sequence output (seq_len, hidden_size) -> mean pooling
-            # Real mean pooling should respect attention mask, but this is a quick proxy
             embedding = np.mean(out, axis=0)
         else:
             embedding = out
             
-        # Normalize
         norm = np.linalg.norm(embedding)
         if norm > 0:
             embedding = embedding / norm
             
         return embedding.tolist()
 
-
 class SearchIndexer:
     def __init__(self):
-        self.gemini_provider = EmbeddingProvider()
         try:
             self.onnx_provider = ONNXEmbeddingProvider()
         except Exception as e:
@@ -96,23 +63,12 @@ class SearchIndexer:
         if not content and not title:
             return False
             
-        text_to_embed = f"{title}
-{content}"
+        text_to_embed = f"{title}\n{content}"
         
-        # Generate Gemini
-        gemini_embedding = None
-        try:
-            gemini_embedding = self.gemini_provider.generate_embedding(text_to_embed)
-        except Exception as e:
-            print(f"Gemini failed: {e}")
+        if not self.onnx_provider:
+            raise Exception("ONNX model is not loaded")
             
-        # Generate ONNX
-        onnx_embedding = None
-        if self.onnx_provider:
-            try:
-                onnx_embedding = self.onnx_provider.generate_embedding(text_to_embed)
-            except Exception as e:
-                print(f"ONNX failed: {e}")
+        embedding = self.onnx_provider.generate_embedding(text_to_embed)
 
         data = {
             "user_id": user_id,
@@ -121,14 +77,9 @@ class SearchIndexer:
             "source_id": source_id,
             "title": title,
             "content": content,
-            "metadata": metadata or {}
+            "metadata": metadata or {},
+            "embedding": embedding
         }
-        
-        # Add whichever embeddings succeeded
-        if gemini_embedding:
-            data["embedding_gemini"] = gemini_embedding
-        if onnx_embedding:
-            data["embedding_onnx"] = onnx_embedding
 
         try:
             response = get_supabase().table("search_documents").upsert(
