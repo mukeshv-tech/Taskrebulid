@@ -168,4 +168,4 @@ Respond strictly in valid JSON without markdown wrapping.
             raise
 
     async def analyze_replacement(self, original_resource: dict, task_name: str, existing_resources: list, task_graph: dict):
-        raise NotImplementedError(\"Gemini does not support analyze_replacement yet\")
+        raise NotImplementedError("Gemini does not support analyze_replacement yet")
