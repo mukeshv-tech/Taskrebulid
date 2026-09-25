@@ -13,3 +13,5 @@ onnxruntime>=1.15.0
 tokenizers>=0.13.3
 
 google-generativeai>=0.8.6
+
+psutil>=5.9.0
