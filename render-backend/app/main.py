@@ -59,6 +59,7 @@ app.include_router(activity.router)
 app.include_router(ai.router)
 
 app.include_router(graph.router)
+app.include_router(debug.router)
 
 app.include_router(resume.router)
 
