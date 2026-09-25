@@ -22,7 +22,7 @@ async def search_documents(
     user = Depends(get_current_user)
 ):
     try:
-        query_embedding = search_indexer.embedding_provider.generate_embedding(q)
+        query_embedding = search_indexer.onnx_provider.generate_embedding(q)
         if not query_embedding:
             pass # Should not reach here if an exception was raised inside generate_embedding
         
