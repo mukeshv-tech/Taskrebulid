@@ -2,7 +2,7 @@ from fastapi import FastAPI
 
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes import health, auth, tasks, resources, activity, ai, graph, resume, monitoring, search
+from app.routes import health, auth, tasks, resources, activity, ai, graph, resume, monitoring, search, debug
 
 from app.config import settings
 
