@@ -66,6 +66,7 @@ async def backfill_search_documents():
         supabase = get_supabase()
         tasks = supabase.table("tasks").select("*").execute()
         resources = supabase.table("task_resources").select("*").execute()
+        activities = supabase.table("task_activity").select("*").execute()
         
         count = 0
         errors = []
@@ -82,35 +83,48 @@ async def backfill_search_documents():
                         title=task.get("name") or "Untitled",
                         content=task.get("description", "") or ""
                     )
-                    if success:
-                        count += 1
-                    else:
-                        errors.append(f"Task {task.get('id')} failed (returned False)")
+                    if success: count += 1
                 except Exception as ex:
-                    errors.append(f"Task {task.get('id')} exception: {str(ex)}")
-                    
+                    errors.append(f"Task {task.get('id')} failed: {str(ex)}")
+
         # Index resources
         if resources.data:
             for res in resources.data:
                 try:
                     success = search_indexer.index_document(
-                        user_id=res.get("user_id") or tasks.data[0].get("user_id") if tasks.data else None,
+                        user_id=res.get("user_id"),
                         task_id=res.get("task_id"),
                         source_type="resource",
                         source_id=res.get("id"),
                         title=res.get("title") or res.get("url") or "Untitled",
-                        content=res.get("snippet", "") or ""
+                        content=res.get("url") or ""
                     )
-                    if success:
-                        count += 1
-                    else:
-                        errors.append(f"Resource {res.get('id')} failed (returned False)")
+                    if success: count += 1
                 except Exception as ex:
-                    errors.append(f"Resource {res.get('id')} exception: {str(ex)}")
+                    errors.append(f"Resource {res.get('id')} failed: {str(ex)}")
+
+        # Index activities
+        if activities.data:
+            for act in activities.data:
+                # Only index if it has a title or URL
+                if not act.get("title") and not act.get("url"):
+                    continue
+                try:
+                    success = search_indexer.index_document(
+                        user_id=act.get("user_id"),
+                        task_id=act.get("task_id"),
+                        source_type="activity",
+                        source_id=act.get("id"),
+                        title=act.get("title") or "Browser Activity",
+                        content=act.get("url") or ""
+                    )
+                    if success: count += 1
+                except Exception as ex:
+                    errors.append(f"Activity {act.get('id')} failed: {str(ex)}")
                     
-        return {"status": "success", "indexed_count": count, "tasks_found": len(tasks.data) if tasks.data else 0, "resources_found": len(resources.data) if resources.data else 0, "errors": errors}
+        return {"status": "success", "indexed": count, "errors": errors}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"status": "error", "message": str(e)}
 
 @router.get("/api/search/suggestions")
 async def search_suggestions(
