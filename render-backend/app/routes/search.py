@@ -60,22 +60,24 @@ async def search_documents(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/api/search/backfill")
-async def backfill_search_documents():
+from fastapi import BackgroundTasks
+
+def run_backfill_bg():
     try:
         supabase = get_supabase()
         tasks = supabase.table("tasks").select("*").execute()
         resources = supabase.table("task_resources").select("*").execute()
+        
+        # Paginate activities if huge
         activities = supabase.table("task_activity").select("*").execute()
         
         count = 0
-        errors = []
         
         # Index tasks
         if tasks.data:
             for task in tasks.data:
                 try:
-                    success = search_indexer.index_document(
+                    search_indexer.index_document(
                         user_id=task.get("user_id"),
                         task_id=task.get("id"),
                         source_type="task",
@@ -83,9 +85,44 @@ async def backfill_search_documents():
                         title=task.get("name") or "Untitled",
                         content=task.get("description", "") or ""
                     )
-                    if success: count += 1
-                except Exception as ex:
-                    errors.append(f"Task {task.get('id')} failed: {str(ex)}")
+                except: pass
+
+        # Index resources
+        if resources.data:
+            for res in resources.data:
+                try:
+                    search_indexer.index_document(
+                        user_id=res.get("user_id"),
+                        task_id=res.get("task_id"),
+                        source_type="resource",
+                        source_id=res.get("id"),
+                        title=res.get("title") or res.get("url") or "Untitled",
+                        content=res.get("url") or ""
+                    )
+                except: pass
+
+        # Index activities
+        if activities.data:
+            for act in activities.data:
+                if not act.get("title") and not act.get("url"):
+                    continue
+                try:
+                    search_indexer.index_document(
+                        user_id=act.get("user_id"),
+                        task_id=act.get("task_id"),
+                        source_type="activity",
+                        source_id=act.get("id"),
+                        title=act.get("title") or "Browser Activity",
+                        content=act.get("url") or ""
+                    )
+                except: pass
+    except Exception as e:
+        print(f"Backfill failed: {e}")
+
+@router.get("/api/search/backfill")
+async def backfill_search_documents(background_tasks: BackgroundTasks):
+    background_tasks.add_task(run_backfill_bg)
+    return {"status": "success", "message": "Backfill has been started in the background. Check your /api/metrics dashboard in a few minutes to see the Vectors count increase!"}
 
         # Index resources
         if resources.data:
