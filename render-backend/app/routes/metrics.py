@@ -233,7 +233,26 @@ async def get_metrics(request: Request):
         
         # New System Metrics
         disk_usage = psutil.disk_usage('/').percent
-        total_ram_gb = round(psutil.virtual_memory().total / (1024**3), 1)
+        
+        # Try to read Docker/cgroup memory limit instead of host RAM
+        total_ram_bytes = None
+        try:
+            # cgroup v2
+            if os.path.exists('/sys/fs/cgroup/memory.max'):
+                with open('/sys/fs/cgroup/memory.max', 'r') as f:
+                    val = f.read().strip()
+                    if val != 'max': total_ram_bytes = int(val)
+            # cgroup v1
+            elif os.path.exists('/sys/fs/cgroup/memory/memory.limit_in_bytes'):
+                with open('/sys/fs/cgroup/memory/memory.limit_in_bytes', 'r') as f:
+                    total_ram_bytes = int(f.read().strip())
+        except: pass
+        
+        if total_ram_bytes and total_ram_bytes < psutil.virtual_memory().total:
+            total_ram_gb = round(total_ram_bytes / (1024**3), 2)
+        else:
+            total_ram_gb = round(psutil.virtual_memory().total / (1024**3), 1)
+
         active_threads = process.num_threads()
         python_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
         
