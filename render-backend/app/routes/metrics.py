@@ -155,7 +155,7 @@ DASHBOARD_HTML = """
         </div>
         
         <div class="text-center mt-12 text-neutral-600 text-[10px] font-mono tracking-widest uppercase border-t border-neutral-900 pt-6">
-            <p>Data refreshes automatically every 2 seconds</p>
+            <p>Data refreshes automatically every 1 second</p>
         </div>
     </div>
 
@@ -207,7 +207,7 @@ DASHBOARD_HTML = """
         }
 
         fetchMetrics();
-        setInterval(fetchMetrics, 2000);
+        setInterval(fetchMetrics, 1000);
     </script>
 </body>
 </html>
