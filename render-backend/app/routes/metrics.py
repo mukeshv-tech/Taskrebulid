@@ -17,7 +17,7 @@ DASHBOARD_HTML = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TaskRebuild | System Metrics</title>
+    <title>TaskRebuild | System Telemetry</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -30,7 +30,6 @@ DASHBOARD_HTML = """
         }
         .metric-value { font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
         
-        /* Pulse animation for the live dot */
         @keyframes pulse-dot {
             0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
             70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(255, 255, 255, 0); }
@@ -42,12 +41,12 @@ DASHBOARD_HTML = """
     </style>
 </head>
 <body class="min-h-screen p-8 selection:bg-white selection:text-black">
-    <div class="max-w-5xl mx-auto">
+    <div class="max-w-6xl mx-auto">
         <!-- Header -->
         <header class="flex justify-between items-center mb-10 pb-6 border-b border-neutral-800">
             <div>
                 <h1 class="text-3xl font-bold text-white tracking-tight">TaskRebuild Engine</h1>
-                <p class="text-neutral-400 mt-1 text-sm font-medium">REAL-TIME SYSTEM TELEMETRY</p>
+                <p class="text-neutral-400 mt-1 text-sm font-medium uppercase tracking-widest" id="python-ver">REAL-TIME SYSTEM TELEMETRY</p>
             </div>
             <div class="flex items-center space-x-3 bg-neutral-900 px-4 py-2 rounded-md border border-neutral-700">
                 <div class="w-2.5 h-2.5 bg-white rounded-full live-dot"></div>
@@ -83,83 +82,83 @@ DASHBOARD_HTML = """
                     <span id="ram-val" class="text-4xl font-bold text-white metric-value">0</span>
                     <span class="text-neutral-500 font-medium">MB</span>
                 </div>
-                <p id="ram-sub" class="text-xs text-neutral-500 mt-5 font-mono">RENDER LIMIT: 512 MB</p>
+                <p id="ram-sub" class="text-xs text-neutral-500 mt-5 font-mono uppercase tracking-widest">Total System RAM: <span id="ram-total">0</span> GB</p>
+            </div>
+
+            <!-- Disk -->
+            <div class="glass-card p-6 relative overflow-hidden">
+                <div class="flex justify-between items-start mb-4 relative z-10">
+                    <h3 class="text-neutral-400 text-sm font-semibold uppercase tracking-wider">Disk Storage</h3>
+                    <svg class="w-5 h-5 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                </div>
+                <div class="flex items-baseline space-x-1 relative z-10">
+                    <span id="disk-val" class="text-4xl font-bold text-white metric-value">0</span>
+                    <span class="text-neutral-500 font-medium">%</span>
+                </div>
+                <div class="w-full bg-neutral-800 rounded-none h-1 mt-6 relative z-10">
+                    <div id="disk-bar" class="bg-white h-1 rounded-none transition-all duration-500 ease-out" style="width: 0%"></div>
+                </div>
             </div>
 
             <!-- Uptime -->
             <div class="glass-card p-6">
                 <div class="flex justify-between items-start mb-4">
-                    <h3 class="text-neutral-400 text-sm font-semibold uppercase tracking-wider">Uptime</h3>
+                    <h3 class="text-neutral-400 text-sm font-semibold uppercase tracking-wider">Uptime & Threads</h3>
                     <svg class="w-5 h-5 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 </div>
                 <div class="flex items-baseline space-x-1">
-                    <span id="uptime-val" class="text-4xl font-bold text-white metric-value">00:00:00</span>
+                    <span id="uptime-val" class="text-3xl font-bold text-white metric-value">00:00:00</span>
                 </div>
-                <p class="text-xs text-neutral-500 mt-5 font-mono">HH:MM:SS SINCE REBOOT</p>
-            </div>
-
-            <!-- Model -->
-            <div class="glass-card p-6">
-                <div class="flex justify-between items-start mb-4">
-                    <h3 class="text-neutral-400 text-sm font-semibold uppercase tracking-wider">AI Engine</h3>
-                    <svg class="w-5 h-5 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                </div>
-                <div class="flex items-center h-full pb-6 pt-1">
-                    <span id="model-val" class="text-xl font-bold text-white leading-tight">Loading...</span>
-                </div>
+                <p class="text-xs text-neutral-500 mt-6 font-mono uppercase tracking-widest"><span id="threads-val">0</span> Active Threads</p>
             </div>
         </div>
 
         <!-- Database Stats row -->
-        <h2 class="text-lg font-bold text-white mb-4 mt-12 uppercase tracking-widest text-neutral-300">Database & Knowledge Graph</h2>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <h2 class="text-lg font-bold text-white mb-4 mt-12 uppercase tracking-widest text-neutral-300">Database Engine Metrics</h2>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             
-            <div class="glass-card p-5 flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-semibold text-neutral-500 uppercase tracking-widest mb-1">Total Tasks</p>
-                    <p id="tasks-val" class="text-3xl font-bold text-white metric-value">0</p>
-                </div>
-                <div class="p-3 bg-neutral-900 rounded-full border border-neutral-800 text-white">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
-                </div>
+            <div class="glass-card p-5 flex flex-col items-center justify-center text-center">
+                <p class="text-[10px] font-semibold text-neutral-500 uppercase tracking-widest mb-2">Tasks</p>
+                <p id="tasks-val" class="text-3xl font-bold text-white metric-value">0</p>
             </div>
 
-            <div class="glass-card p-5 flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-semibold text-neutral-500 uppercase tracking-widest mb-1">Graph Nodes</p>
-                    <p id="nodes-val" class="text-3xl font-bold text-white metric-value">0</p>
-                </div>
-                <div class="p-3 bg-neutral-900 rounded-full border border-neutral-800 text-white">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5"></path></svg>
-                </div>
+            <div class="glass-card p-5 flex flex-col items-center justify-center text-center">
+                <p class="text-[10px] font-semibold text-neutral-500 uppercase tracking-widest mb-2">URLs Saved</p>
+                <p id="resources-val" class="text-3xl font-bold text-white metric-value">0</p>
             </div>
 
-            <div class="glass-card p-5 flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-semibold text-neutral-500 uppercase tracking-widest mb-1">Graph Edges</p>
-                    <p id="edges-val" class="text-3xl font-bold text-white metric-value">0</p>
-                </div>
-                <div class="p-3 bg-neutral-900 rounded-full border border-neutral-800 text-white">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
-                </div>
+            <div class="glass-card p-5 flex flex-col items-center justify-center text-center">
+                <p class="text-[10px] font-semibold text-neutral-500 uppercase tracking-widest mb-2">Browser Logs</p>
+                <p id="activity-val" class="text-3xl font-bold text-white metric-value">0</p>
             </div>
 
-            <div class="glass-card p-5 flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-semibold text-neutral-500 uppercase tracking-widest mb-1">Vectors Indexed</p>
-                    <p id="vectors-val" class="text-3xl font-bold text-white metric-value">0</p>
-                </div>
-                <div class="p-3 bg-neutral-900 rounded-full border border-neutral-800 text-white">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                </div>
+            <div class="glass-card p-5 flex flex-col items-center justify-center text-center">
+                <p class="text-[10px] font-semibold text-neutral-500 uppercase tracking-widest mb-2">Graph Nodes</p>
+                <p id="nodes-val" class="text-3xl font-bold text-white metric-value">0</p>
+            </div>
+
+            <div class="glass-card p-5 flex flex-col items-center justify-center text-center">
+                <p class="text-[10px] font-semibold text-neutral-500 uppercase tracking-widest mb-2">Graph Edges</p>
+                <p id="edges-val" class="text-3xl font-bold text-white metric-value">0</p>
+            </div>
+
+            <div class="glass-card p-5 flex flex-col items-center justify-center text-center">
+                <p class="text-[10px] font-semibold text-neutral-500 uppercase tracking-widest mb-2">Vectors</p>
+                <p id="vectors-val" class="text-3xl font-bold text-white metric-value">0</p>
             </div>
 
         </div>
+
+        <div class="mt-8 glass-card p-4 flex justify-between items-center">
+            <span class="text-xs text-neutral-400 font-mono tracking-widest uppercase">EMBEDDING MODEL</span>
+            <span id="model-val" class="text-sm font-bold text-white tracking-widest uppercase">Loading...</span>
+        </div>
         
-        <div class="text-center mt-16 text-neutral-600 text-xs font-mono tracking-widest uppercase border-t border-neutral-900 pt-6">
+        <div class="text-center mt-12 text-neutral-600 text-[10px] font-mono tracking-widest uppercase border-t border-neutral-900 pt-6">
             <p>Data refreshes automatically every 2 seconds</p>
         </div>
     </div>
+
     <script>
         function formatUptime(seconds) {
             const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
@@ -182,10 +181,22 @@ DASHBOARD_HTML = """
 
                 document.getElementById('cpu-val').innerText = data.server.cpu_usage_percent.toFixed(1);
                 document.getElementById('cpu-bar').style.width = `${Math.min(100, data.server.cpu_usage_percent)}%`;
+                
                 document.getElementById('ram-val').innerText = data.server.ram_usage_mb;
+                document.getElementById('ram-total').innerText = data.server.total_ram_gb;
+                
+                document.getElementById('disk-val').innerText = data.server.disk_usage_percent.toFixed(1);
+                document.getElementById('disk-bar').style.width = `${Math.min(100, data.server.disk_usage_percent)}%`;
+
                 document.getElementById('uptime-val').innerText = formatUptime(data.server.uptime_seconds);
+                document.getElementById('threads-val').innerText = data.server.active_threads;
+                document.getElementById('python-ver').innerText = `REAL-TIME TELEMETRY • PYTHON ${data.server.python_version}`;
+
                 document.getElementById('model-val').innerText = data.server.model_loaded;
+
                 document.getElementById('tasks-val').innerText = data.database.total_tasks;
+                document.getElementById('resources-val').innerText = data.database.total_resources;
+                document.getElementById('activity-val').innerText = data.database.total_activity;
                 document.getElementById('nodes-val').innerText = data.database.knowledge_graph_nodes;
                 document.getElementById('edges-val').innerText = data.database.knowledge_graph_edges;
                 document.getElementById('vectors-val').innerText = data.database.indexed_search_documents;
@@ -204,41 +215,56 @@ DASHBOARD_HTML = """
 
 @router.get("/api/metrics")
 async def get_metrics(request: Request):
-    # Check if the client wants HTML (like a web browser)
     accept_header = request.headers.get("accept", "")
     
     if "text/html" in accept_header:
+        from fastapi.responses import HTMLResponse
         return HTMLResponse(content=DASHBOARD_HTML)
         
-    # Otherwise return the JSON data
     try:
+        from fastapi.responses import JSONResponse
+        import sys
         supabase = get_supabase()
         
-        # CPU & RAM Stats
         process = psutil.Process(os.getpid())
         ram_usage_mb = process.memory_info().rss / 1024 / 1024
         cpu_usage = psutil.cpu_percent(interval=0.1)
         uptime_seconds = time.time() - start_time
         
+        # New System Metrics
+        disk_usage = psutil.disk_usage('/').percent
+        total_ram_gb = round(psutil.virtual_memory().total / (1024**3), 1)
+        active_threads = process.num_threads()
+        python_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+        
         # Database Stats
         doc_count = supabase.table("search_documents").select("id", count="exact").limit(1).execute()
         task_count = supabase.table("tasks").select("id", count="exact").limit(1).execute()
+        res_count = supabase.table("task_resources").select("id", count="exact").limit(1).execute()
+        act_count = supabase.table("task_activity").select("id", count="exact").limit(1).execute()
         node_count = supabase.table("task_nodes").select("id", count="exact").limit(1).execute()
         edge_count = supabase.table("task_edges").select("id", count="exact").limit(1).execute()
         
         return JSONResponse({
             "server": {
                 "ram_usage_mb": round(ram_usage_mb, 2),
+                "total_ram_gb": total_ram_gb,
                 "cpu_usage_percent": cpu_usage,
+                "disk_usage_percent": disk_usage,
                 "uptime_seconds": int(uptime_seconds),
+                "active_threads": active_threads,
+                "python_version": python_ver,
                 "model_loaded": "ONNX bge-small-en-v1.5 (Local)"
             },
             "database": {
                 "total_tasks": task_count.count if task_count else 0,
+                "total_resources": res_count.count if res_count else 0,
+                "total_activity": act_count.count if act_count else 0,
                 "indexed_search_documents": doc_count.count if doc_count else 0,
                 "knowledge_graph_nodes": node_count.count if node_count else 0,
                 "knowledge_graph_edges": edge_count.count if edge_count else 0
             }
         })
     except Exception as e:
+        from fastapi.responses import JSONResponse
         return JSONResponse({"error": str(e)}, status_code=500)
