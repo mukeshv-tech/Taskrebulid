@@ -87,7 +87,8 @@ def run_backfill_bg():
                         title=task.get("name") or "Untitled",
                         content=task.get("description", "") or ""
                     )
-                except: pass
+                except Exception as e:
+                    print(f"Backfill indexing error: {e}")
                 time.sleep(0.2) # Yield CPU to prevent freezing server
 
         # Index resources
@@ -102,7 +103,8 @@ def run_backfill_bg():
                         title=res.get("title") or res.get("url") or "Untitled",
                         content=f"{res.get('description', '')} \n {res.get('url', '')}"
                     )
-                except: pass
+                except Exception as e:
+                    print(f"Backfill indexing error: {e}")
                 time.sleep(0.2)
 
         # Index activities
@@ -119,7 +121,8 @@ def run_backfill_bg():
                         title=act.get("title") or "Browser Activity",
                         content=act.get("url") or ""
                     )
-                except: pass
+                except Exception as e:
+                    print(f"Backfill indexing error: {e}")
                 time.sleep(0.2)
     except Exception as e:
         print(f"Backfill failed: {e}")
