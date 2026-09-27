@@ -39,7 +39,7 @@ def add_task_resource(task_id: str, resource: ResourceCreate, background_tasks: 
             source_type="resource",
             source_id=new_resource["id"],
             title=new_resource.get("title", ""),
-            content=new_resource.get("url", ""),
+            content=f"{new_resource.get('description', '')} \n {new_resource.get('url', '')}",
             metadata={"url": new_resource.get("url", "")}
         )
         
