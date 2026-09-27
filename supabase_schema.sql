@@ -223,9 +223,9 @@ CREATE TABLE public.task_snapshots (
 
 ALTER TABLE public.task_snapshots ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY ""Users can view their own task snapshots"" ON public.task_snapshots FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY ""Users can insert their own task snapshots"" ON public.task_snapshots FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY ""Users can delete their own task snapshots"" ON public.task_snapshots FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view their own task snapshots" ON public.task_snapshots FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own task snapshots" ON public.task_snapshots FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own task snapshots" ON public.task_snapshots FOR DELETE USING (auth.uid() = user_id);
 
 CREATE INDEX idx_task_snapshots_task_id ON public.task_snapshots(task_id);
 CREATE INDEX idx_task_snapshots_user_id ON public.task_snapshots(user_id);
@@ -251,9 +251,9 @@ CREATE TABLE public.resource_checks (
 );
 
 ALTER TABLE public.resource_checks ENABLE ROW LEVEL SECURITY;
-CREATE POLICY ""Users can view their own resource checks"" ON public.resource_checks FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY ""Users can insert their own resource checks"" ON public.resource_checks FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY ""Users can delete their own resource checks"" ON public.resource_checks FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view their own resource checks" ON public.resource_checks FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own resource checks" ON public.resource_checks FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own resource checks" ON public.resource_checks FOR DELETE USING (auth.uid() = user_id);
 
 CREATE INDEX idx_resource_checks_resource_id ON public.resource_checks(resource_id);
 CREATE INDEX idx_resource_checks_task_id ON public.resource_checks(task_id);
@@ -293,14 +293,14 @@ CREATE TABLE public.search_history (
 ALTER TABLE public.search_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.search_history ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY ""Users can view their own search documents"" ON public.search_documents FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY ""Users can insert their own search documents"" ON public.search_documents FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY ""Users can update their own search documents"" ON public.search_documents FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY ""Users can delete their own search documents"" ON public.search_documents FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view their own search documents" ON public.search_documents FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own search documents" ON public.search_documents FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update their own search documents" ON public.search_documents FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own search documents" ON public.search_documents FOR DELETE USING (auth.uid() = user_id);
 
-CREATE POLICY ""Users can view their own search history"" ON public.search_history FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY ""Users can insert their own search history"" ON public.search_history FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY ""Users can delete their own search history"" ON public.search_history FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view their own search history" ON public.search_history FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own search history" ON public.search_history FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own search history" ON public.search_history FOR DELETE USING (auth.uid() = user_id);
 
 CREATE INDEX idx_search_documents_user_id ON public.search_documents(user_id);
 CREATE INDEX idx_search_documents_task_id ON public.search_documents(task_id);
