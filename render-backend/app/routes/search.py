@@ -100,7 +100,7 @@ def run_backfill_bg():
                         source_type="resource",
                         source_id=res.get("id"),
                         title=res.get("title") or res.get("url") or "Untitled",
-                        content=res.get("url") or ""
+                        content=f"{res.get('description', '')} \n {res.get('url', '')}"
                     )
                 except: pass
                 time.sleep(0.2)
