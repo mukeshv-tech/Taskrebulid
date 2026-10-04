@@ -63,6 +63,25 @@ async def search_documents(
 from fastapi import BackgroundTasks
 import time
 
+@router.get("/api/search/suggestions")
+async def search_suggestions(
+    q: str,
+    user = Depends(get_current_user)
+):
+    try:
+        response = get_supabase().rpc(
+            "autocomplete_search",
+            {
+                "query_text": q,
+                "p_user_id": user.id,
+                "match_count": 5
+            }
+        ).execute()
+        return {"suggestions": [row["suggestion"] for row in response.data]}
+    except Exception as e:
+        print(f"Suggestions error: {e}")
+        return {"suggestions": []}
+
 def run_backfill_bg():
     try:
         from app.supabase import get_supabase
