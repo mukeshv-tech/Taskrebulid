@@ -49,6 +49,11 @@ async def search_documents(
         grouped_results = {}
         for row in results:
             source_type = row.get("source_type", "unknown")
+            
+            # Extract URL from metadata for the frontend
+            meta = row.get("metadata") or {}
+            row["url"] = meta.get("url")
+            
             if source_type not in grouped_results:
                 grouped_results[source_type] = []
             grouped_results[source_type].append(row)
