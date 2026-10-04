@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi  import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.supabase import get_supabase
 import logging

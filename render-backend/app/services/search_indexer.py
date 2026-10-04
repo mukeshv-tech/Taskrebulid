@@ -7,7 +7,7 @@ from app.supabase import get_supabase
 class GeminiEmbeddingProvider:
     def __init__(self, api_key: str):
         genai.configure(api_key=api_key)
-        self.model = "models/embedding-001"
+        self.model = "gemini-embedding-001"
 
     def generate_embedding(self, text: str):
         if not text.strip():
