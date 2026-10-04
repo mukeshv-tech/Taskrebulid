@@ -1,7 +1,7 @@
 import os
 import google.generativeai as genai
 from typing import Dict, Any, List
-from app.config import GEMINI_API_KEY
+from app.config import settings
 from app.supabase import get_supabase
 
 class GeminiEmbeddingProvider:
@@ -36,8 +36,8 @@ class GeminiEmbeddingProvider:
 
 class SearchIndexer:
     def __init__(self):
-        if GEMINI_API_KEY:
-            self.provider = GeminiEmbeddingProvider(api_key=GEMINI_API_KEY)
+        if settings.GEMINI_API_KEY:
+            self.provider = GeminiEmbeddingProvider(api_key=settings.GEMINI_API_KEY)
         else:
             self.provider = None
 
