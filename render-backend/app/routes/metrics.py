@@ -273,7 +273,7 @@ async def get_metrics(request: Request):
                 "uptime_seconds": int(uptime_seconds),
                 "active_threads": active_threads,
                 "python_version": python_ver,
-                "model_loaded": "ONNX bge-small-en-v1.5 (Avg Chunking x10)"
+                "model_loaded": "Gemini Embedding 001 (Cloud)"
             },
             "database": {
                 "total_tasks": task_count.count if task_count else 0,
