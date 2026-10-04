@@ -32,7 +32,8 @@ async def search_documents(
                 "query_embedding": query_embedding,
                 "query_text": q,
                 "match_count": match_count,
-                "p_user_id": user.id
+                "p_user_id": user.id,
+                "p_task_ids": [task_id] if task_id else None
             }
         ).execute()
 
@@ -43,8 +44,6 @@ async def search_documents(
         }).execute()
 
         results = response.data
-        if task_id:
-            results = [r for r in results if r.get("task_id") == task_id]
         
         # Group results by task
         grouped_results = {}
