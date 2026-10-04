@@ -277,7 +277,7 @@ CREATE TABLE public.search_documents (
     title TEXT,
     content TEXT,
     metadata JSONB,
-    embedding vector(384),
+    embedding vector(3072),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE(source_type, source_id)
@@ -307,7 +307,7 @@ CREATE INDEX idx_search_documents_task_id ON public.search_documents(task_id);
 CREATE INDEX idx_search_documents_embedding ON public.search_documents USING hnsw (embedding vector_cosine_ops);
 
 CREATE OR REPLACE FUNCTION hybrid_search_documents(
-    query_embedding vector(384),
+    query_embedding vector(3072),
     query_text text,
     match_count int,
     match_threshold float,
