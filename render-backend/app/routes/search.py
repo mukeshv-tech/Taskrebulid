@@ -123,7 +123,8 @@ def run_backfill_bg():
                         source_type="resource",
                         source_id=res.get("id"),
                         title=res.get("title") or res.get("url") or "Untitled",
-                        content=f"{res.get('description', '')} \n {res.get('url', '')}"
+                        content=f"{res.get('description', '')} \n {res.get('url', '')}",
+                        metadata={"url": res.get("url")}
                     )
                 except Exception as e:
                     print(f"Backfill indexing error: {e}")
@@ -141,7 +142,8 @@ def run_backfill_bg():
                         source_type="activity",
                         source_id=act.get("id"),
                         title=act.get("title") or "Browser Activity",
-                        content=act.get("url") or ""
+                        content=act.get("url") or "",
+                        metadata={"url": act.get("url")}
                     )
                 except Exception as e:
                     print(f"Backfill indexing error: {e}")
