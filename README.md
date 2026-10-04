@@ -1,6 +1,6 @@
 # 🧠 TaskRebuild
 
-**TaskRebuild** is a next-generation, AI-powered productivity suite and context-aware workspace. It consists of a React Chrome Extension and a massively scalable Python/PostgreSQL backend that act as your automatic "Second Brain."
+**TaskRebuild** is an intelligent, **task-aware extension project** designed to act as your automatic "Second Brain." By combining a React-powered Chrome Extension with a massively scalable Python/PostgreSQL backend, it creates a next-generation, context-aware productivity workspace.
 
 ---
 
