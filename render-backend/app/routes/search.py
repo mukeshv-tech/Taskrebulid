@@ -27,12 +27,11 @@ async def search_documents(
             pass # Should not reach here if an exception was raised inside generate_embedding
         
         response = get_supabase().rpc(
-            "hybrid_search_documents",
+            "hybrid_search_rrf",
             {
                 "query_embedding": query_embedding,
                 "query_text": q,
                 "match_count": match_count,
-                "match_threshold": match_threshold,
                 "p_user_id": user.id
             }
         ).execute()
