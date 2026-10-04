@@ -27,12 +27,36 @@ const SearchTab: React.FC<SearchProps> = ({ taskId, onNavigateToTask }) => {
   const handleCopyLink = async (e: React.MouseEvent, url: string, id: string) => {
     e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(url);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const el = document.createElement('textarea');
+        el.value = url;
+        el.setAttribute('readonly', '');
+        el.style.position = 'absolute';
+        el.style.left = '-9999px';
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      }
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch (err) {
       console.error("Copy failed", err);
-      alert("Failed to copy link");
+      
+      // Ultimate fallback:
+      const el = document.createElement('textarea');
+      el.value = url;
+      el.style.position = 'absolute';
+      el.style.left = '-9999px';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
     }
   };
 
