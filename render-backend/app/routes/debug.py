@@ -30,3 +30,31 @@ def debug_ai():
         "provider_init_error": init_error,
         "model_name": settings.GEMINI_MODEL_NAME
     }
+
+@router.get("/api/debug/test-gemini")
+async def test_gemini():
+    try:
+        from app.services.search_indexer import search_indexer
+        import google.generativeai as genai
+        
+        if not search_indexer.provider:
+            return {"status": "error", "message": "Gemini API provider not initialized. Check GEMINI_API_KEY in .env"}
+            
+        test_text = "Hello world"
+        embedding, chunks = search_indexer.provider.generate_embedding(test_text)
+        
+        # also test inserting it into supabase
+        from app.supabase import get_supabase
+        supabase = get_supabase()
+        
+        return {
+            "status": "success",
+            "model_used": search_indexer.provider.model,
+            "dimensions_generated": len(embedding),
+            "first_5_values": embedding[:5],
+            "last_5_values": embedding[-5:],
+            "chunks_used": chunks
+        }
+    except Exception as e:
+        import traceback
+        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
