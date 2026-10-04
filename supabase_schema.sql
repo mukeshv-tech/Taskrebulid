@@ -339,8 +339,11 @@ BEGIN
     FROM search_documents d
     WHERE 
         (d.user_id = p_user_id) AND
-        (1 - (d.embedding <=> query_embedding) > match_threshold) AND
-        (query_text IS NULL OR d.title ILIKE '%' || query_text || '%' OR d.content ILIKE '%' || query_text || '%')
+        (
+            (1 - (d.embedding <=> query_embedding) > match_threshold)
+            OR
+            (query_text IS NOT NULL AND (d.title ILIKE '%' || query_text || '%' OR d.content ILIKE '%' || query_text || '%'))
+        )
     ORDER BY similarity DESC
     LIMIT match_count;
 END;

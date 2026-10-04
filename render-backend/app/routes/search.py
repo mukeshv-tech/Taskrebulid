@@ -18,7 +18,7 @@ async def search_documents(
     q: str,
     task_id: Optional[str] = None,
     match_count: int = 10,
-    match_threshold: float = 0.75,
+    match_threshold: float = 0.40,
     user = Depends(get_current_user)
 ):
     try:
