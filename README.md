@@ -1,10 +1,24 @@
 # 🧠 TaskRebuild
 
-**TaskRebuild** is an intelligent, context-aware productivity suite consisting of a React-powered Chrome Extension and a massively scalable FastAPI/PostgreSQL backend. It is designed to act as a "Second Brain," automatically tracking your browsing activity, capturing research resources, and mapping your workflow into a vector-searchable AI Knowledge Graph.
+**TaskRebuild** is a next-generation, AI-powered productivity suite and context-aware workspace. It consists of a React Chrome Extension and a massively scalable Python/PostgreSQL backend that act as your automatic "Second Brain."
 
 ---
 
-## ✨ Core Engines
+## 🤔 What actually is TaskRebuild?
+
+### The Problem: Context Decay
+When you research a complex topic or write code, you usually open 50 StackOverflow tabs, save a few disjointed bookmarks, and scribble some notes. If you close your browser and come back a week later, your "context" is entirely gone. You have no idea *why* you saved a specific link or how it connects to the overall problem you were trying to solve. 
+
+### The Solution: An Automatic Second Brain
+**TaskRebuild** completely solves this by tracking your research automatically and mapping it into a visual, searchable graph. 
+
+Whenever you browse the web, the TaskRebuild Chrome Extension silently observes your active tabs and ties them to a specific **Task** (e.g., "Fix Authentication Bug"). Behind the scenes, the Python backend uses Google's **Gemini AI** to read what you are looking at, understand the content, and map out exactly how your web searches connect to your final solutions. 
+
+When you need to find something months later, you don't just search for a keyword—you talk to a 3072-dimension semantic search engine that instantly pulls up the exact paragraph you read 6 months ago, highlighting the exact sentence you need.
+
+---
+
+## ✨ Core Technical Engines
 
 ### 🔍 1. Google-Clone RRF Search Engine
 TaskRebuild doesn't just do basic text search. It utilizes a custom **Reciprocal Rank Fusion (RRF)** engine built directly into PostgreSQL that simultaneously calculates and merges:
