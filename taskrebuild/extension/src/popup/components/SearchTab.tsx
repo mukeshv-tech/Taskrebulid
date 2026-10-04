@@ -22,6 +22,20 @@ const SearchTab: React.FC<SearchProps> = ({ taskId, onNavigateToTask }) => {
   const [results, setResults] = useState<Record<string, SearchResult[]>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyLink = async (e: React.MouseEvent, url: string, id: string) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error("Copy failed", err);
+      alert("Failed to copy link");
+    }
+  };
+
   
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -194,9 +208,27 @@ const SearchTab: React.FC<SearchProps> = ({ taskId, onNavigateToTask }) => {
                           </button>
                         )}
                         {item.url && (
-                          <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '10px', padding: '4px 8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', textDecoration: 'none', color: '#0f172a' }}>
+                          <a href={item.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ fontSize: '10px', padding: '4px 8px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer', textDecoration: 'none', color: '#0f172a' }}>
                             Open Resource
                           </a>
+                        )}
+                        {item.url && (
+                          <button 
+                            onClick={(e) => handleCopyLink(e, item.url!, item.id)} 
+                            style={{ 
+                              fontSize: '10px', 
+                              padding: '4px 8px', 
+                              background: copiedId === item.id ? '#dcfce7' : '#f1f5f9', 
+                              color: copiedId === item.id ? '#166534' : '#0f172a', 
+                              border: '1px solid', 
+                              borderColor: copiedId === item.id ? '#bbf7d0' : '#cbd5e1', 
+                              borderRadius: '4px', 
+                              cursor: 'pointer', 
+                              transition: 'all 0.2s' 
+                            }}
+                          >
+                            {copiedId === item.id ? '✓ Copied!' : 'Copy Link'}
+                          </button>
                         )}
                       </div>
                     </li>
