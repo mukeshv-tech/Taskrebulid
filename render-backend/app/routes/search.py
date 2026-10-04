@@ -49,10 +49,10 @@ async def search_documents(
         # Group results by task
         grouped_results = {}
         for row in results:
-            task_id = row["task_id"]
-            if task_id not in grouped_results:
-                grouped_results[task_id] = []
-            grouped_results[task_id].append(row)
+            source_type = row.get("source_type", "unknown")
+            if source_type not in grouped_results:
+                grouped_results[source_type] = []
+            grouped_results[source_type].append(row)
             
         return {"results": grouped_results, "raw": results}
     except Exception as e:

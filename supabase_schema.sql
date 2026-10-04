@@ -319,7 +319,7 @@ RETURNS TABLE (
     source_type text,
     source_id uuid,
     title text,
-    content text,
+    snippet text,
     metadata jsonb,
     similarity float
 )
