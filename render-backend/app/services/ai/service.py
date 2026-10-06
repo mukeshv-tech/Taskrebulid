@@ -98,3 +98,17 @@ class AIService:
             raise HTTPException(status_code=500, detail=f"AI replacement analysis failed: {e}")
 
 ai_service = AIService()
+
+    async def generate_learning_path(self, task_name: str, nodes: list, edges: list) -> str:
+        if not settings.AI_ENABLED:
+            raise HTTPException(status_code=503, detail="AI analysis is temporarily unavailable or disabled.")
+        
+        provider = self.providers.get(settings.GRAPH_AI_PROVIDER, self.placeholder)
+        if not provider:
+             provider = self.placeholder
+
+        try:
+            return await provider.generate_learning_path(task_name, nodes, edges)
+        except Exception as e:
+            logger.error(f"AI learning path generation failed: {e}")
+            raise HTTPException(status_code=500, detail=f"AI learning path failed: {e}")

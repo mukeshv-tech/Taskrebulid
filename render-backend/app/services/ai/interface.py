@@ -4,7 +4,15 @@ from .schemas import AIAnalysisInput, AIAnalysisResult, AIGraphAnalysisResult, A
 
 class AIProvider(ABC):
     @abstractmethod
+    async def generate_learning_path(self, task_name: str, nodes: list, edges: list) -> str:
+        pass
+
+    @abstractmethod
     async def analyze_task(self, input_data: AIAnalysisInput) -> AIAnalysisResult:
+        pass
+
+    @abstractmethod
+    async def generate_learning_path(self, task_name: str, nodes: list, edges: list) -> str:
         pass
 
     @abstractmethod
@@ -12,7 +20,15 @@ class AIProvider(ABC):
         pass
 
     @abstractmethod
+    async def generate_learning_path(self, task_name: str, nodes: list, edges: list) -> str:
+        pass
+
+    @abstractmethod
     async def analyze_resume(self, input_data: AIResumeInput) -> AIResumeResult:
+        pass
+
+    @abstractmethod
+    async def generate_learning_path(self, task_name: str, nodes: list, edges: list) -> str:
         pass
 
     @abstractmethod

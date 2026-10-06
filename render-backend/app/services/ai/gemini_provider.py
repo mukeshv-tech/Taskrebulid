@@ -169,3 +169,42 @@ Respond strictly in valid JSON without markdown wrapping.
 
     async def analyze_replacement(self, original_resource: dict, task_name: str, existing_resources: list, task_graph: dict):
         raise NotImplementedError("Gemini does not support analyze_replacement yet")
+
+    async def generate_learning_path(self, task_name: str, nodes: list, edges: list) -> str:
+        if not self.api_key:
+            raise ValueError("Gemini API Key is not configured.")
+
+        prompt = f"""
+You are an expert technical instructor and technical writer. 
+The user has been researching a topic called '{task_name}'. 
+We have extracted their research into a Knowledge Graph with the following Nodes and Edges:
+
+Nodes:
+{json.dumps(nodes, indent=2)}
+
+Edges:
+{json.dumps(edges, indent=2)}
+
+INSTRUCTIONS:
+Using ONLY the provided Knowledge Graph data, generate a comprehensive, logically sequenced "Learning Path" document in Markdown format.
+The document must include:
+1. **Introduction**: A brief overview of what this learning path covers.
+2. **Prerequisites**: Identify foundational concepts (nodes that have many outgoing edges or act as roots).
+3. **The Learning Sequence**: A step-by-step, ordered path through the topics. For each step, provide a clear explanation of how it relates to the previous steps, referencing the specific URLs or resources from the nodes.
+4. **Expected Outcomes**: What the user will have mastered by completing this path.
+
+Format the output entirely in clean, readable Markdown (no json or extra markdown tags). Make it look like professional documentation.
+"""
+        try:
+            model = genai.GenerativeModel(self.model_name)
+            response = await asyncio.to_thread(
+                model.generate_content,
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=0.4
+                )
+            )
+            return response.text
+        except Exception as e:
+            logger.error(f"Gemini Learning Path error: {e}")
+            raise

@@ -2,6 +2,9 @@ from .interface import AIProvider
 from .schemas import AIAnalysisInput, AIAnalysisResult, AIGraphAnalysisResult, AIResumeInput, AIResumeResult
 
 class PlaceholderAIProvider(AIProvider):
+    async def generate_learning_path(self, task_name: str, nodes: list, edges: list) -> str:
+        return '# Placeholder Learning Path'
+
     async def analyze_task(self, input_data: AIAnalysisInput) -> AIAnalysisResult:
         return AIAnalysisResult(
             task_summary="Placeholder AI: Task analysis not available.",

@@ -91,3 +91,6 @@ export const replaceResourceWithExisting = (taskId: string, resourceId: string, 
 
 export const toggleAutoMonitor = (taskId: string) => fetchApi(`/api/tasks/${taskId}/toggle-monitor`, { method: 'POST' });
 export const checkAllMonitored = () => fetchApi(`/api/monitoring/check-all`, { method: 'POST' });
+
+export const generateLearningPath = (taskId: string) => fetchApi(`/api/tasks/${taskId}/learning-path`, { method: 'POST' });
+export const getLearningPath = (taskId: string) => fetchApi(`/api/tasks/${taskId}/learning-path`);
