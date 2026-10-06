@@ -97,7 +97,6 @@ class AIService:
             logger.error(f"AI replacement analysis failed: {e}")
             raise HTTPException(status_code=500, detail=f"AI replacement analysis failed: {e}")
 
-ai_service = AIService()
 
     async def generate_learning_path(self, task_name: str, nodes: list, edges: list) -> str:
         if not settings.AI_ENABLED:
@@ -112,3 +111,5 @@ ai_service = AIService()
         except Exception as e:
             logger.error(f"AI learning path generation failed: {e}")
             raise HTTPException(status_code=500, detail=f"AI learning path failed: {e}")
+
+ai_service = AIService()
