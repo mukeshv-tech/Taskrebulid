@@ -1,13 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { getTaskGraph, analyzeTaskGraph, deleteGraphNode, deleteGraphEdge, rejectGraphEdge } from '../../lib/api';
+import React, { useState, useEffect, useCallback } from 'react';
+import { getTaskGraph, analyzeTaskGraph } from '../../lib/api';
+import { ReactFlow, Controls, Background, MarkerType, applyNodeChanges, applyEdgeChanges, NodeChange, EdgeChange } from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 
 interface GraphTabProps {
   taskId: string;
 }
 
 const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
+  const [rawNodes, setRawNodes] = useState<any[]>([]);
+  const [rawEdges, setRawEdges] = useState<any[]>([]);
+  
   const [nodes, setNodes] = useState<any[]>([]);
   const [edges, setEdges] = useState<any[]>([]);
+  
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState('');
 
@@ -15,8 +21,8 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
     try {
       setError('');
       const data = await getTaskGraph(taskId);
-      setNodes(data.nodes || []);
-      setEdges(data.edges || []);
+      setRawNodes(data.nodes || []);
+      setRawEdges(data.edges || []);
     } catch (e: any) {
       console.error(e);
       setError('Failed to load graph data.');
@@ -41,104 +47,122 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
     }
   };
 
-  const handleRemoveNode = async (nodeId: string) => {
-    try {
-      await deleteGraphNode(taskId, nodeId);
-      await loadGraph();
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  // Process data into React Flow format
+  useEffect(() => {
+    if (rawNodes.length === 0) return;
 
-  const handleRemoveEdge = async (edgeId: string) => {
-    try {
-      await deleteGraphEdge(taskId, edgeId);
-      await loadGraph();
-    } catch (e) {
-      console.error(e);
-    }
-  };
+    // Filter rejected edges
+    const validRawEdges = rawEdges.filter(e => !e.is_rejected);
+    
+    // Simple Circular Layout
+    const centerX = 200;
+    const centerY = 150;
+    const radius = 120;
+    const angleStep = (2 * Math.PI) / (rawNodes.length - 1 || 1);
+    
+    let currentAngle = 0;
 
-  const handleRejectEdge = async (edgeId: string) => {
-    try {
-      await rejectGraphEdge(taskId, edgeId);
-      await loadGraph();
-    } catch (e) {
-      console.error(e);
-    }
-  };
+    const flowNodes = rawNodes.map((n) => {
+      let color = '#334155'; // default slate
+      let border = '#94a3b8';
+      
+      if (n.node_type === 'task') { color = '#5b21b6'; border = '#8b5cf6'; }
+      else if (n.node_type === 'resource') { color = '#1e3a8a'; border = '#3b82f6'; }
+      else if (n.node_type === 'activity') { color = '#064e3b'; border = '#10b981'; }
+      else if (n.node_type === 'concept') { color = '#831843'; border = '#f43f5e'; }
 
-  // Basic representation
-  const validEdges = edges.filter(e => !e.is_rejected);
-  
+      // Position logic: Put task in center, others in a circle
+      let x = centerX;
+      let y = centerY;
+      if (n.node_type !== 'task') {
+        x = centerX + radius * Math.cos(currentAngle);
+        y = centerY + radius * Math.sin(currentAngle);
+        currentAngle += angleStep;
+      }
+
+      return {
+        id: n.id,
+        position: { x, y },
+        data: { label: n.label },
+        style: {
+          background: color,
+          color: '#f8fafc',
+          border: `1px solid ${border}`,
+          borderRadius: '6px',
+          padding: '8px',
+          fontSize: '10px',
+          width: 120,
+          boxShadow: `0 0 10px ${border}40`,
+        },
+      };
+    });
+
+    const flowEdges = validRawEdges.map(e => ({
+      id: e.id,
+      source: e.source_node_id,
+      target: e.target_node_id,
+      label: e.relationship_type,
+      labelStyle: { fill: '#94a3b8', fontSize: 9 },
+      labelBgStyle: { fill: '#1e1e1e', fillOpacity: 0.8 },
+      style: { stroke: '#475569', strokeWidth: 1.5 },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: '#475569',
+      },
+    }));
+    
+    // Validate edges
+    const safeEdges = flowEdges.filter(e => 
+      flowNodes.find(n => n.id === e.source) && flowNodes.find(n => n.id === e.target)
+    );
+
+    setNodes(flowNodes);
+    setEdges(safeEdges);
+  }, [rawNodes, rawEdges]);
+
+  const onNodesChange = useCallback((changes: NodeChange[]) => setNodes((nds) => applyNodeChanges(changes, nds)), []);
+  const onEdgesChange = useCallback((changes: EdgeChange[]) => setEdges((eds) => applyEdgeChanges(changes, eds)), []);
+
   return (
-    <div style={{ marginTop: '20px', padding: '15px', background: '#f8fafc', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h4 style={{ margin: 0, color: '#0f172a' }}>Knowledge Graph</h4>
+    <div style={{ marginTop: '20px', background: '#121212', borderRadius: '8px', border: '1px solid #333', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 15px', borderBottom: '1px solid #333', background: '#1e1e1e' }}>
+        <h4 style={{ margin: 0, color: '#e5e7eb', fontSize: '13px' }}>🧠 Obsidian Map</h4>
         <button 
           onClick={handleAnalyzeGraph} 
           disabled={isAnalyzing}
-          style={{ background: '#3b82f6', color: 'white', padding: '5px 10px', fontSize: '12px' }}
+          style={{ background: '#8b5cf6', color: 'white', padding: '4px 8px', fontSize: '11px', border: 'none', borderRadius: '4px', cursor: 'pointer', opacity: isAnalyzing ? 0.7 : 1 }}
         >
-          {isAnalyzing ? 'Analyzing...' : 'Analyze Task Graph'}
+          {isAnalyzing ? 'Analyzing...' : 'Generate Connections'}
         </button>
       </div>
       
-      {error && <p style={{ color: '#ef4444', fontSize: '12px', marginTop: '10px' }}>{error}</p>}
+      {error && <p style={{ color: '#ef4444', fontSize: '12px', padding: '0 15px' }}>{error}</p>}
       
-      <div style={{ marginTop: '15px' }}>
-        {nodes.length === 0 ? (
-          <p style={{ fontSize: '12px', color: '#64748b' }}>No graph data available. Run analysis to extract concepts.</p>
-        ) : (
-          <div>
-            <h5 style={{ margin: '10px 0 5px 0', fontSize: '13px' }}>Nodes</h5>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {nodes.map(node => (
-                <li key={node.id} style={{ marginBottom: '8px', padding: '8px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <strong>{node.label}</strong>
-                    <button onClick={() => handleRemoveNode(node.id)} style={{ padding: '2px 5px', fontSize: '10px', background: 'transparent', color: '#ef4444', border: 'none' }}>Remove</button>
-                  </div>
-                  <div style={{ color: '#64748b', fontSize: '10px', display: 'flex', gap: '8px', marginTop: '4px' }}>
-                    <span>Type: {node.node_type}</span>
-                    {node.is_ai_generated && <span style={{ color: '#8b5cf6', fontWeight: 'bold' }}>AI inferred · {node.confidence?.toFixed(2) || '1.00'}</span>}
-                  </div>
-                  {node.description && <div style={{ marginTop: '4px', fontStyle: 'italic' }}>{node.description}</div>}
-                </li>
-              ))}
-            </ul>
-
-            <h5 style={{ margin: '15px 0 5px 0', fontSize: '13px' }}>Relationships</h5>
-            {validEdges.length === 0 ? (
-              <p style={{ fontSize: '12px', color: '#64748b' }}>No relationships extracted.</p>
-            ) : (
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {validEdges.map(edge => {
-                  const source = nodes.find(n => n.id === edge.source_node_id);
-                  const target = nodes.find(n => n.id === edge.target_node_id);
-                  return (
-                    <li key={edge.id} style={{ marginBottom: '8px', padding: '8px', background: 'white', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <strong>{source ? source.label : 'Unknown'}</strong> 
-                          <span style={{ margin: '0 8px', color: '#3b82f6' }}>── {edge.relationship_type} ──►</span> 
-                          <strong>{target ? target.label : 'Unknown'}</strong>
-                        </div>
-                        <div style={{ display: 'flex', gap: '5px' }}>
-                          <button onClick={() => handleRejectEdge(edge.id)} style={{ padding: '2px 5px', fontSize: '10px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5' }}>Reject</button>
-                          <button onClick={() => handleRemoveEdge(edge.id)} style={{ padding: '2px 5px', fontSize: '10px', background: 'transparent', color: '#64748b', border: 'none' }}>x</button>
-                        </div>
-                      </div>
-                      <div style={{ color: '#64748b', fontSize: '10px', marginTop: '4px' }}>
-                        {edge.is_ai_generated && <span style={{ color: '#8b5cf6', fontWeight: 'bold' }}>AI inferred · {edge.confidence?.toFixed(2) || '1.00'}</span>}
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
+      <div style={{ width: '100%', height: '350px', position: 'relative' }}>
+        {rawNodes.length === 0 ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#6b7280', fontSize: '12px' }}>
+            No graph data. Click Generate Connections.
           </div>
+        ) : (
+          <ReactFlow 
+            nodes={nodes} 
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            fitView
+            attributionPosition="bottom-right"
+          >
+            <Background color="#333" gap={16} />
+            <Controls style={{ fill: '#fff', background: '#252525' }} />
+          </ReactFlow>
         )}
+      </div>
+      
+      <div style={{ padding: '8px 15px', background: '#1e1e1e', borderTop: '1px solid #333', display: 'flex', gap: '15px', fontSize: '10px' }}>
+        <span style={{ color: '#a78bfa' }}>● Task</span>
+        <span style={{ color: '#60a5fa' }}>● Resource</span>
+        <span style={{ color: '#34d399' }}>● Activity</span>
+        <span style={{ color: '#f472b6' }}>● Concept</span>
       </div>
     </div>
   );
