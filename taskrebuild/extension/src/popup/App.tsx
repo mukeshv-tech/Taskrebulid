@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchApi, getTaskResources, createTaskResource, deleteTaskResource, getTaskActivity, analyzeTask, getTaskAIAnalyses, deleteTaskActivity, deleteTaskAIAnalysis, clearTaskActivity } from '../lib/api';
 import GraphTab from './components/GraphTab';
+import LearningPathTab from './components/LearningPathTab';
 import SearchTab from './components/SearchTab';
 import ResumeSection from './components/ResumeSection';
 import ResourceMonitor from './components/ResourceMonitor';
@@ -431,6 +432,7 @@ const App: React.FC = () => {
         
         <SearchTab taskId={selectedTask.id} />
         <GraphTab taskId={selectedTask.id} />
+        <LearningPathTab taskId={selectedTask.id} />
 
         
         <button className="delete-task-btn" onClick={(e) => handleDeleteTask(e, selectedTask.id)} style={{ marginTop: '20px' }}>Delete Task</button>
