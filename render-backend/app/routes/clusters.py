@@ -4,7 +4,7 @@ from app.auth import get_current_user
 from app.services.cluster_service import generate_clusters_for_task, get_task_clusters
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/tasks/{task_id}/clusters", tags=["clusters"])
+router = APIRouter(prefix="/api/tasks/{task_id}/clusters", tags=["clusters"])
 
 class ClusterResponse(BaseModel):
     id: str
