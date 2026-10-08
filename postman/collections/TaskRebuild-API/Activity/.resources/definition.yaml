@@ -1,0 +1,3 @@
+$kind: collection
+name: Activity
+description: Record and retrieve browser activity events for a task. Activity events are batched and sent from the browser extension.

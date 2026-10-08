@@ -1,0 +1,3 @@
+$kind: collection
+name: Auth
+description: Authentication endpoints. Returns the current authenticated user's profile.

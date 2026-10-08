@@ -1,0 +1,17 @@
+$kind: http-request
+name: Get Current User
+order: 1000
+method: GET
+url: '{{base_url}}/api/me'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test("Response has user id and email", () => {
+        const json = pm.response.json();
+        pm.expect(json.id).to.exist;
+        pm.expect(json.email).to.exist;
+      });

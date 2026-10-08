@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { fetchApi, getTaskResources, createTaskResource, deleteTaskResource, getTaskActivity, analyzeTask, getTaskAIAnalyses, deleteTaskActivity, deleteTaskAIAnalysis, clearTaskActivity } from '../lib/api';
+import { supabase } from '../lib/supabase';
 import GraphTab from './components/GraphTab';
 import LearningPathTab from './components/LearningPathTab';
 import SearchTab from './components/SearchTab';
 import ResumeSection from './components/ResumeSection';
 import ResourceMonitor from './components/ResourceMonitor';
+import Auth from './components/Auth';
+import ClustersTab from './components/ClustersTab';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -28,31 +31,43 @@ const App: React.FC = () => {
   const [activeTaskName, setActiveTaskName] = useState<string | null>(null);
 
   useEffect(() => {
-    // HARDCODED BYPASS FOR TESTING
-    const dummySession = {
-      access_token: 'PASTE_YOUR_USER_JWT_HERE',
-      user: { id: 'c96c1bfb-3c54-4400-b162-22e2eb5d5220', email: 'mukesh.v@globalschoolsalumni.org' }
-    };
-    setSession(dummySession);
-    localStorage.setItem('supabase-session', JSON.stringify(dummySession));
-    
-    // Also save for background script
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({ 'supabase-session': JSON.stringify(dummySession) });
-    }
-    
-    // Load local storage active task if any
-    chrome.storage.local.get(['activeTaskId', 'activeTaskName'], (result) => {
-      if (result.activeTaskId) {
-        setActiveTaskId(result.activeTaskId);
-        setActiveTaskName(result.activeTaskName);
-      }
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      handleSessionSetup(session);
     });
-    
-    setTimeout(() => {
-      loadTasks();
-    }, 500);
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      handleSessionSetup(session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  const handleSessionSetup = (session: any) => {
+    setSession(session);
+    if (session) {
+      localStorage.setItem('supabase-session', JSON.stringify(session));
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({ 'supabase-session': JSON.stringify(session) });
+      }
+      
+      chrome.storage.local.get(['activeTaskId', 'activeTaskName'], (result) => {
+        if (result.activeTaskId) {
+          setActiveTaskId(result.activeTaskId);
+          setActiveTaskName(result.activeTaskName);
+        }
+      });
+      setTimeout(() => {
+        loadTasks();
+      }, 500);
+    } else {
+      localStorage.removeItem('supabase-session');
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.remove('supabase-session');
+      }
+    }
+  };
 
   useEffect(() => {
     if (selectedTask) {
@@ -108,6 +123,7 @@ const App: React.FC = () => {
   };
   
   const handleSignOut = async () => {
+    await supabase.auth.signOut();
     setSession(null);
     chrome.storage.local.remove(['activeTaskId', 'activeTaskName']);
     setActiveTaskId(null);
@@ -251,7 +267,7 @@ const App: React.FC = () => {
     }
   };
 
-  if (!session) return null;
+  if (!session) return <Auth onSession={handleSessionSetup} />;
 
   if (selectedTask) {
     const isActive = activeTaskId === selectedTask.id;
@@ -432,6 +448,7 @@ const App: React.FC = () => {
         
         <SearchTab taskId={selectedTask.id} />
         <GraphTab taskId={selectedTask.id} />
+        <ClustersTab taskId={selectedTask.id} />
         <LearningPathTab taskId={selectedTask.id} />
 
         

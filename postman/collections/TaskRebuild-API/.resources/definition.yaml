@@ -1,0 +1,34 @@
+$kind: collection
+name: TaskRebuild API
+description: |-
+  # TaskRebuild API 🚀
+
+  An intelligent, context-aware productivity backend that automatically tracks browsing activity,  
+  captures resources, and maps your workflow into an advanced vector-searchable Knowledge Graph.
+
+  ## Core Engines
+
+  - **Google-Clone RRF Search**: 3072-dimension semantic search powered by Gemini AI + PostgreSQL Trigrams
+      
+  - **Knowledge Graph**: Every task, resource, and browser session mapped into a dynamic graph
+      
+  - **Live System Metrics**: Asynchronous, zero-latency monitoring of RAM, Python runtime, and vector counts
+      
+
+  ## Authentication
+
+  All endpoints (except `/health`) require a Supabase Auth JWT token:  
+  `Authorization: Bearer {{auth_token}}`
+auth:
+  type: bearer
+  credentials:
+    token: "{{auth_token}}"
+variables:
+  base_url: https://your-app.onrender.com
+  auth_token: ""
+  task_id: ""
+  resource_id: ""
+  activity_id: ""
+  analysis_id: ""
+  node_id: ""
+  edge_id: ""

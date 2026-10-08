@@ -1,0 +1,3 @@
+$kind: collection
+name: Tasks
+description: CRUD operations for tasks. Tasks are the top-level unit of work in TaskRebuild.

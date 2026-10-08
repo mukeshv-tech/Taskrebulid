@@ -1,0 +1,16 @@
+$kind: http-request
+name: Delete Analysis
+order: 3000
+method: DELETE
+url: '{{base_url}}/api/tasks/{{task_id}}/ai/analyses/{{analysis_id}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test("Analysis deleted", () => {
+        const json = pm.response.json();
+        pm.expect(json.status).to.equal("success");
+      });
