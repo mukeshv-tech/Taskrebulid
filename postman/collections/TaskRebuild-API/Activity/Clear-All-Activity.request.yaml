@@ -1,0 +1,16 @@
+$kind: http-request
+name: Clear All Activity
+order: 4000
+method: DELETE
+url: '{{base_url}}/api/tasks/{{task_id}}/activity'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test("Activity cleared", () => {
+        const json = pm.response.json();
+        pm.expect(json.status).to.equal("success");
+      });

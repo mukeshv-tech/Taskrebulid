@@ -1,0 +1,27 @@
+$kind: http-request
+name: Add Resource
+order: 2000
+method: POST
+url: '{{base_url}}/api/tasks/{{task_id}}/resources'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "url": "https://example.com",
+      "title": "Example Resource"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test("Resource created with id", () => {
+        const json = pm.response.json();
+        pm.expect(json.id).to.exist;
+        pm.collectionVariables.set("resource_id", json.id);
+      });

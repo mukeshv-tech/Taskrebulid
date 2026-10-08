@@ -1,0 +1,3 @@
+$kind: collection
+name: Resources
+description: Manage URLs/resources attached to a task. Resources are web pages or links captured during a work session.

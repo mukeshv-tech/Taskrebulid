@@ -1,0 +1,36 @@
+$kind: http-request
+name: Record Activity
+order: 2000
+method: POST
+url: '{{base_url}}/api/tasks/{{task_id}}/activity'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "events": [
+        {
+          "event_type": "page_visit",
+          "url": "https://example.com",
+          "title": "Example Page",
+          "tab_id": "tab-123",
+          "window_id": "window-1",
+          "timestamp": "2024-01-01T12:00:00Z",
+          "metadata": {}
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", () => {
+        pm.response.to.have.status(200);
+      });
+      pm.test("Activity recorded", () => {
+        const json = pm.response.json();
+        pm.expect(json.status).to.equal("success");
+        pm.expect(json.count).to.be.a("number");
+      });
