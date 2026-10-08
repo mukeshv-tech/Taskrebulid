@@ -34,6 +34,7 @@
     "activeTab",
     "tabs",
     "storage",
-    "clipboardWrite"
+    "clipboardWrite",
+    "identity"
   ]
 }
