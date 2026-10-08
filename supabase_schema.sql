@@ -348,3 +348,66 @@ BEGIN
     LIMIT match_count;
 END;
 $$;
+
+-- PHASE 6: Task Clustering
+
+CREATE TABLE public.task_clusters (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_id UUID NOT NULL REFERENCES public.tasks(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    label TEXT NOT NULL,
+    summary TEXT,
+    rationale TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.task_clusters ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY ""Users can view their own task clusters""
+ON public.task_clusters FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY ""Users can insert their own task clusters""
+ON public.task_clusters FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY ""Users can update their own task clusters""
+ON public.task_clusters FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY ""Users can delete their own task clusters""
+ON public.task_clusters FOR DELETE USING (auth.uid() = user_id);
+
+CREATE INDEX idx_task_clusters_task_id ON public.task_clusters(task_id);
+CREATE INDEX idx_task_clusters_user_id ON public.task_clusters(user_id);
+
+
+CREATE TABLE public.task_cluster_members (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    cluster_id UUID NOT NULL REFERENCES public.task_clusters(id) ON DELETE CASCADE,
+    node_id UUID NOT NULL REFERENCES public.task_nodes(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE(cluster_id, node_id)
+);
+
+ALTER TABLE public.task_cluster_members ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY ""Users can view their own task cluster members""
+ON public.task_cluster_members FOR SELECT 
+USING (
+    cluster_id IN (SELECT id FROM public.task_clusters WHERE user_id = auth.uid())
+);
+
+CREATE POLICY ""Users can insert their own task cluster members""
+ON public.task_cluster_members FOR INSERT 
+WITH CHECK (
+    cluster_id IN (SELECT id FROM public.task_clusters WHERE user_id = auth.uid())
+);
+
+CREATE POLICY ""Users can delete their own task cluster members""
+ON public.task_cluster_members FOR DELETE 
+USING (
+    cluster_id IN (SELECT id FROM public.task_clusters WHERE user_id = auth.uid())
+);
+
+CREATE INDEX idx_task_cluster_members_cluster_id ON public.task_cluster_members(cluster_id);
+CREATE INDEX idx_task_cluster_members_node_id ON public.task_cluster_members(node_id);
+

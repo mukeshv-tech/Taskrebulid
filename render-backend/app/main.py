@@ -114,6 +114,8 @@ app.include_router(ai.router)
 app.include_router(graph.router)
 app.include_router(debug.router)
 app.include_router(metrics.router)
+from app.routes import clusters
+app.include_router(clusters.router)
 
 app.include_router(resume.router)
 
