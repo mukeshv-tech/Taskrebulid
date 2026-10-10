@@ -31,6 +31,7 @@ class AIService:
                 self.providers["groq"] = GroqProvider(api_key=settings.GROQ_API_KEY, model_name=settings.GROQ_MODEL_NAME)
                 logger.info("Groq provider initialized.")
             except Exception as e:
+                self.groq_error = str(e)
                 logger.error(f"Failed to init Groq provider: {e}")
 
     async def analyze_task(self, input_data: AIAnalysisInput) -> AIAnalysisResult:
@@ -43,7 +44,8 @@ class AIService:
             keys_set = []
             if settings.GEMINI_API_KEY: keys_set.append("GEMINI")
             if settings.GROQ_API_KEY: keys_set.append("GROQ")
-            debug_msg = f"Placeholder AI. Requested: {settings.TASK_AI_PROVIDER}. Loaded: {list(self.providers.keys())}. Keys Set: {keys_set}"
+            groq_err = getattr(self, 'groq_error', 'None')
+            debug_msg = f"Placeholder AI. Requested: {settings.TASK_AI_PROVIDER}. Loaded: {list(self.providers.keys())}. Keys Set: {keys_set}. Groq Error: {groq_err}"
             return AIAnalysisResult(
                 task_summary=debug_msg,
                 topics=[], resource_analysis=[], activity_summary=debug_msg, suggested_next_steps=[]
