@@ -38,10 +38,16 @@ class AIService:
             raise HTTPException(status_code=503, detail="AI analysis is temporarily unavailable or disabled.")
         
         provider = self.providers.get(settings.TASK_AI_PROVIDER, self.placeholder)
-        if provider == self.placeholder and settings.TASK_AI_PROVIDER in self.providers:
-            pass # placeholder means it fell back
-        elif not provider:
-             provider = self.placeholder
+        if provider == self.placeholder:
+            # Provide debug info about WHY it fell back
+            keys_set = []
+            if settings.GEMINI_API_KEY: keys_set.append("GEMINI")
+            if settings.GROQ_API_KEY: keys_set.append("GROQ")
+            debug_msg = f"Placeholder AI. Requested: {settings.TASK_AI_PROVIDER}. Loaded: {list(self.providers.keys())}. Keys Set: {keys_set}"
+            return AIAnalysisResult(
+                task_summary=debug_msg,
+                topics=[], resource_analysis=[], activity_summary=debug_msg, suggested_next_steps=[]
+            )
 
         try:
             result = await provider.analyze_task(input_data)
