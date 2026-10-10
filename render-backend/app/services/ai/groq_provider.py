@@ -194,3 +194,6 @@ Output must be valid JSON matching this schema exactly:
         except Exception as e:
             logger.error(f"Groq Replacement Analysis API error: {e}")
             raise
+
+    async def generate_learning_path(self, task_name: str, nodes: list, edges: list) -> str:
+        return '# Groq Learning Path\n\n(Not yet implemented)'
