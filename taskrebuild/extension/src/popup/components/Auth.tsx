@@ -31,6 +31,8 @@ const Auth: React.FC<AuthProps> = ({ onSession }) => {
       if (error) throw error;
       if (!data?.url) throw new Error("No URL returned from Supabase");
 
+      console.log("Supabase OAuth URL:", data.url);
+
       chrome.identity.launchWebAuthFlow(
         {
           url: data.url,
@@ -38,7 +40,7 @@ const Auth: React.FC<AuthProps> = ({ onSession }) => {
         },
         async (redirectedTo) => {
           if (chrome.runtime.lastError || !redirectedTo) {
-            setError(chrome.runtime.lastError?.message || 'Authentication failed');
+            setError(`Auth Error: ${chrome.runtime.lastError?.message}. Check if your Google Client ID is correct in Supabase, and your redirect URL is added to Supabase.`);
             setLoading(false);
             return;
           }
@@ -129,8 +131,7 @@ const Auth: React.FC<AuthProps> = ({ onSession }) => {
           fontWeight: 'bold'
         }}
       >
-        <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google" style={{ width: '16px', marginRight: '10px' }} />
-        Continue with Google
+        <span style={{ marginRight: '10px', fontSize: '16px' }}>G</span> Continue with Google
       </button>
 
       <div style={{ display: 'flex', alignItems: 'center', margin: '15px 0' }}>

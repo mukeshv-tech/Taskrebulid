@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-import google.generativeai as genai
 from .interface import AIProvider
 from .schemas import AIAnalysisInput, AIAnalysisResult, AIGraphAnalysisResult, AIResumeInput, AIResumeResult
 
@@ -12,6 +11,7 @@ class GeminiProvider(AIProvider):
         self.api_key = api_key
         self.model_name = model_name
         if self.api_key:
+            import google.generativeai as genai
             genai.configure(api_key=self.api_key)
         else:
             logger.warning("GEMINI_API_KEY is not set. GeminiProvider will fail on analysis.")
@@ -50,6 +50,7 @@ Respond strictly in valid JSON without markdown wrapping like ```json.
 """
 
         try:
+            import google.generativeai as genai
             model = genai.GenerativeModel(self.model_name)
             response = model.generate_content(
                 prompt,
@@ -103,6 +104,7 @@ Output JSON matching this exact structure:
 Respond strictly in valid JSON without markdown wrapping.
 """
         try:
+            import google.generativeai as genai
             model = genai.GenerativeModel(self.model_name)
             response = model.generate_content(
                 prompt,
@@ -151,6 +153,7 @@ Output must be valid JSON matching this schema exactly:
 Respond strictly in valid JSON without markdown wrapping.
 """
         try:
+            import google.generativeai as genai
             model = genai.GenerativeModel(self.model_name)
             response = model.generate_content(
                 prompt,
@@ -197,6 +200,7 @@ The document must include:
 Format the output entirely in clean, readable Markdown (no json or extra markdown tags). Make it look like professional documentation.
 """
         try:
+            import google.generativeai as genai
             model = genai.GenerativeModel(self.model_name)
             response = await asyncio.to_thread(
                 model.generate_content,
