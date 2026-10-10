@@ -65,7 +65,7 @@ def generate_clusters_for_task(task_id: str, user_id: str) -> List[Dict[str, Any
     Return ONLY valid JSON.
     """
     
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-3.1-pro-low')
     response = model.generate_content(prompt)
     
     # Parse JSON
