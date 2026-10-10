@@ -1,6 +1,5 @@
 import json
 import logging
-from groq import AsyncGroq
 from .interface import AIProvider
 from .schemas import AIAnalysisInput, AIAnalysisResult, AIGraphAnalysisResult, AIResumeInput, AIResumeResult
 
@@ -11,6 +10,7 @@ class GroqProvider(AIProvider):
         self.api_key = api_key
         self.model_name = model_name
         if self.api_key:
+            from groq import AsyncGroq
             self.client = AsyncGroq(api_key=self.api_key)
         else:
             self.client = None

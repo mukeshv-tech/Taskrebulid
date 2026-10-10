@@ -1,11 +1,11 @@
 import json
-import google.generativeai as genai
 from app.supabase import get_supabase
 from app.config import settings
 from typing import List, Dict, Any
 
 # Configure Gemini
 if settings.GEMINI_API_KEY:
+    import google.generativeai as genai
     genai.configure(api_key=settings.GEMINI_API_KEY)
 
 def generate_clusters_for_task(task_id: str, user_id: str) -> List[Dict[str, Any]]:
@@ -65,6 +65,7 @@ def generate_clusters_for_task(task_id: str, user_id: str) -> List[Dict[str, Any
     Return ONLY valid JSON.
     """
     
+    import google.generativeai as genai
     model = genai.GenerativeModel('gemini-3.1-pro-low')
     response = model.generate_content(prompt)
     

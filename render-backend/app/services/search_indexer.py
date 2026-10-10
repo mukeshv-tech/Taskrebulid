@@ -1,11 +1,11 @@
 import os
-import google.generativeai as genai
 from typing import Dict, Any, List
 from app.config import settings
 from app.supabase import get_supabase
 
 class GeminiEmbeddingProvider:
     def __init__(self, api_key: str):
+        import google.generativeai as genai
         genai.configure(api_key=api_key)
         self.model = "gemini-embedding-001"
 
@@ -15,6 +15,7 @@ class GeminiEmbeddingProvider:
             return ([0.0] * 3072, 1)
             
         try:
+            import google.generativeai as genai
             result = genai.embed_content(
                 model=self.model,
                 content=text,

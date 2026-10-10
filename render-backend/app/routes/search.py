@@ -5,7 +5,6 @@ from pydantic import BaseModel
 from app.supabase import get_supabase
 from app.auth import get_current_user
 from app.services.search_indexer import search_indexer
-import google.generativeai as genai
 
 router = APIRouter(tags=["search"])
 
