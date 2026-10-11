@@ -22,43 +22,66 @@ class GeminiProvider(AIProvider):
 
         # Prepare the prompt
         prompt = f"""
-You are an AI assistant analyzing a user's research task.
+You are an expert technical assistant analyzing a user's research and work task.
 Task Name: {input_data.task_name}
 
-Resources:
+Attached Resources:
 {json.dumps([r.model_dump() for r in input_data.resources], indent=2)}
 
 Recent Activity:
 {json.dumps([a.model_dump() for a in input_data.activity], indent=2)}
 
-Based ONLY on the provided resources and activity, analyze the task and return a JSON object with the following schema:
+INSTRUCTIONS:
+1. Provide a comprehensive summary ("task_summary") synthesizing what this task is about based on the task name and any available resources/activity. Even if resources or activity are sparse or empty, provide a helpful, actionable overview and purpose based on the task title!
+2. Identify core key topics ("topics") relevant to this task (with confidence 0.0 to 1.0). If no resources exist, deduce the primary topics from the task title.
+3. For "resource_analysis": Analyze each resource provided. If no resources are attached yet, return an empty array [].
+4. For "activity_summary": Summarize the recent browsing activity, or state "No browsing activity recorded yet for this task." if empty.
+5. Provide 3-5 concrete, actionable next steps ("suggested_next_steps") the user should take to progress on this task (e.g. what documentation to check, what architecture to plan, what to research).
+
+Respond strictly in valid JSON matching this schema:
 {{
-  "task_summary": "A brief summary of what this task is about based on the data",
+  "task_summary": "Thorough, clear summary of the task and objectives",
   "topics": [
     {{ "name": "Topic Name", "confidence": 0.95 }}
   ],
   "resource_analysis": [
-    {{ "resource_id": "id from the resource object", "relevance": 0.8, "reason": "why it's relevant" }}
+    {{ "resource_id": "id", "relevance": 0.85, "reason": "why relevant" }}
   ],
-  "activity_summary": "A brief summary of the user's recent actions",
+  "activity_summary": "Summary of actions or note that no activity is logged yet",
   "suggested_next_steps": [
-    "Step 1", "Step 2"
+    "Next step 1",
+    "Next step 2"
   ]
 }}
-Do not invent resources. Keep confidence values between 0.0 and 1.0.
-Respond strictly in valid JSON without markdown wrapping like ```json.
 """
 
         try:
             import google.generativeai as genai
-            model = genai.GenerativeModel(self.model_name)
-            response = model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
-                    response_mime_type="application/json",
-                )
-            )
+            genai.configure(api_key=self.api_key)
             
+            model_candidates = [self.model_name, 'gemini-1.5-flash', 'gemini-2.0-flash']
+            models_to_try = [m for i, m in enumerate(model_candidates) if m and m not in model_candidates[:i]]
+            
+            response = None
+            last_err = None
+            for m_name in models_to_try:
+                try:
+                    model = genai.GenerativeModel(m_name)
+                    response = model.generate_content(
+                        prompt,
+                        generation_config=genai.types.GenerationConfig(
+                            response_mime_type="application/json",
+                        )
+                    )
+                    if response and response.text:
+                        break
+                except Exception as e:
+                    last_err = e
+                    logger.warning(f"Gemini analyze_task with {m_name} failed: {e}. Trying fallback...")
+            
+            if not response or not response.text:
+                raise ValueError(f"Gemini analysis failed: {last_err}")
+                
             result_text = response.text
             result_json = json.loads(result_text)
             
