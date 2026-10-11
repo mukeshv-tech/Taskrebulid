@@ -21,30 +21,72 @@ class GroqProvider(AIProvider):
             raise ValueError("Groq API Key is not configured.")
 
         prompt = f"""
-Analyze the following research task and provide insights.
+You are an expert technical assistant analyzing a user's research and work task.
 Task Name: {input_data.task_name}
-Resources: {json.dumps([r.model_dump() for r in input_data.resources])}
-Recent Activity: {json.dumps([a.model_dump() for a in input_data.activity])}
+
+Attached Resources:
+{json.dumps([r.model_dump() for r in input_data.resources], indent=2)}
+
+Recent Activity:
+{json.dumps([a.model_dump() for a in input_data.activity], indent=2)}
+
+INSTRUCTIONS:
+1. Provide a comprehensive summary ("task_summary") synthesizing what this task is about based on the task name and any available resources/activity. Even if resources or activity are sparse or empty, provide a helpful, actionable overview and purpose based on the task title!
+2. Identify core key topics ("topics") relevant to this task (with confidence 0.0 to 1.0). If no resources exist, deduce the primary topics from the task title.
+3. For "resource_analysis": Analyze each resource provided. If no resources are attached yet, return an empty array [].
+4. For "activity_summary": Summarize the recent browsing activity, or state "No browsing activity recorded yet for this task." if empty.
+5. Provide 3-5 concrete, actionable next steps ("suggested_next_steps") the user should take to progress on this task (e.g. what documentation to check, what architecture to plan, what to research).
+
+Output strictly valid JSON matching this schema:
+{{
+  "task_summary": "Thorough, clear summary of the task and objectives",
+  "topics": [
+    {{ "name": "Topic Name", "confidence": 0.95 }}
+  ],
+  "resource_analysis": [
+    {{ "resource_id": "id", "relevance": 0.85, "reason": "why relevant" }}
+  ],
+  "activity_summary": "Summary of actions or note that no activity is logged yet",
+  "suggested_next_steps": [
+    "Next step 1",
+    "Next step 2"
+  ]
+}}
 """
         schema_json = json.dumps(AIAnalysisResult.model_json_schema())
 
         try:
-            response = await self.client.chat.completions.create(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": f"You are a helpful assistant that outputs strictly in JSON. The JSON object must strictly follow this schema: {schema_json}"
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    }
-                ],
-                model=self.model_name,
-                temperature=0.1,
-                response_format={"type": "json_object"},
-            )
+            model_candidates = [self.model_name, 'llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'mixtral-8x7b-32768']
+            models_to_try = [m for i, m in enumerate(model_candidates) if m and m not in model_candidates[:i]]
             
+            response = None
+            last_err = None
+            for m_name in models_to_try:
+                try:
+                    response = await self.client.chat.completions.create(
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": f"You are a helpful assistant that outputs strictly in JSON. The JSON object must strictly follow this schema: {schema_json}"
+                            },
+                            {
+                                "role": "user",
+                                "content": prompt,
+                            }
+                        ],
+                        model=m_name,
+                        temperature=0.2,
+                        response_format={"type": "json_object"},
+                    )
+                    if response and response.choices:
+                        break
+                except Exception as e:
+                    last_err = e
+                    logger.warning(f"Groq analyze_task with {m_name} failed: {e}. Trying fallback...")
+            
+            if not response or not response.choices:
+                raise ValueError(f"Groq analysis failed: {last_err}")
+                
             raw_text = response.choices[0].message.content
             result_json = json.loads(raw_text)
             return AIAnalysisResult(**result_json)

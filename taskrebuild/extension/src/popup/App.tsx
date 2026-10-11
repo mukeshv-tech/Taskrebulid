@@ -410,37 +410,54 @@ const App: React.FC = () => {
             <div style={{ marginTop: '15px', fontSize: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ background: '#ddd6fe', color: '#4c1d95', padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 'bold' }}>AI-generated</span>
-                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteAnalysis(); }} style={{ padding: '2px 5px', fontSize: '10px', background: 'transparent', color: '#ef4444', border: '1px solid #ef4444' }}>Delete Analysis</button>
+                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteAnalysis(); }} style={{ padding: '2px 5px', fontSize: '10px', background: 'transparent', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '3px', cursor: 'pointer' }}>Delete Analysis</button>
               </div>
-              <p style={{ fontStyle: 'italic', marginTop: '10px' }}>"{aiAnalysis.result.task_summary}"</p>
               
-              <h5 style={{ margin: '10px 0 5px 0' }}>Topics</h5>
-              <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
-                {aiAnalysis.result.topics?.map((t: any, i: number) => (
-                  <li key={i}>{String(t.name)} (Confidence: {String(t.confidence)})</li>
-                ))}
-              </ul>
+              {aiAnalysis.result.task_summary ? (
+                <p style={{ fontStyle: 'italic', marginTop: '10px', color: '#374151', lineHeight: '1.4' }}>"{aiAnalysis.result.task_summary}"</p>
+              ) : (
+                <p style={{ fontStyle: 'italic', marginTop: '10px', color: '#9ca3af' }}>No summary generated yet. Click "Refresh Analysis" to analyze this task.</p>
+              )}
               
-              <h5 style={{ margin: '10px 0 5px 0' }}>Resource Analysis</h5>
-              <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
-                {aiAnalysis.result.resource_analysis?.map((r: any, i: number) => {
-                  const res = resources.find(rx => rx.id === r.resource_id);
-                  return (
-                    <li key={i}>
-                      <strong>{String(res ? res.title || res.url : r.resource_id)}</strong> - Relevance: {String(r.relevance)}
-                      <br/>
-                      <span style={{ color: '#6b7280' }}>{String(r.reason)}</span>
-                    </li>
-                  )
-                })}
-              </ul>
+              <h5 style={{ margin: '12px 0 5px 0', color: '#1f2937' }}>Topics</h5>
+              {(!aiAnalysis.result.topics || aiAnalysis.result.topics.length === 0) ? (
+                <p style={{ color: '#9ca3af', fontSize: '11px', margin: '0 0 10px 0' }}>No topics extracted yet. Click Refresh Analysis to identify topics.</p>
+              ) : (
+                <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
+                  {aiAnalysis.result.topics.map((t: any, i: number) => (
+                    <li key={i}>{String(t.name)} {t.confidence !== undefined && <span style={{ color: '#6b7280', fontSize: '10px' }}>({Math.round((t.confidence || 1) * 100)}%)</span>}</li>
+                  ))}
+                </ul>
+              )}
               
-              <h5 style={{ margin: '10px 0 5px 0' }}>Suggested Next Steps</h5>
-              <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
-                {aiAnalysis.result.suggested_next_steps?.map((step: string, i: number) => (
-                  <li key={i}>{String(step)}</li>
-                ))}
-              </ul>
+              <h5 style={{ margin: '12px 0 5px 0', color: '#1f2937' }}>Resource Analysis</h5>
+              {(!aiAnalysis.result.resource_analysis || aiAnalysis.result.resource_analysis.length === 0) ? (
+                <p style={{ color: '#9ca3af', fontSize: '11px', margin: '0 0 10px 0' }}>No resources analyzed yet. Add current tabs or links above to get relevance insights.</p>
+              ) : (
+                <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
+                  {aiAnalysis.result.resource_analysis.map((r: any, i: number) => {
+                    const res = resources.find(rx => rx.id === r.resource_id);
+                    return (
+                      <li key={i}>
+                        <strong>{String(res ? res.title || res.url : r.resource_id)}</strong> - Relevance: {String(r.relevance)}
+                        <br/>
+                        <span style={{ color: '#6b7280' }}>{String(r.reason)}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              
+              <h5 style={{ margin: '12px 0 5px 0', color: '#1f2937' }}>Suggested Next Steps</h5>
+              {(!aiAnalysis.result.suggested_next_steps || aiAnalysis.result.suggested_next_steps.length === 0) ? (
+                <p style={{ color: '#9ca3af', fontSize: '11px', margin: '0 0 10px 0' }}>No next steps available yet.</p>
+              ) : (
+                <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px' }}>
+                  {aiAnalysis.result.suggested_next_steps.map((step: string, i: number) => (
+                    <li key={i}>{String(step)}</li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
         </div>
