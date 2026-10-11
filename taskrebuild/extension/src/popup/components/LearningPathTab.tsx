@@ -64,17 +64,19 @@ const LearningPathTab: React.FC<LearningPathTabProps> = ({ taskId }) => {
       )}
 
       {markdown && (
-        <div className="markdown-body" style={{ color: '#cbd5e1', fontSize: '12px', lineHeight: '1.5', maxHeight: '400px', overflowY: 'auto', paddingRight: '10px' }}>
+        <div style={{ color: '#cbd5e1', fontSize: '12px', lineHeight: '1.6', maxHeight: '400px', overflowY: 'auto', paddingRight: '10px', wordBreak: 'normal', overflowWrap: 'break-word' }}>
           <ReactMarkdown
             components={{
-              h1: ({node, ...props}) => <h1 style={{ color: '#f8fafc', fontSize: '16px', borderBottom: '1px solid #334155', paddingBottom: '4px', marginTop: '10px' }} {...props} />,
-              h2: ({node, ...props}) => <h2 style={{ color: '#f8fafc', fontSize: '14px', marginTop: '10px' }} {...props} />,
-              h3: ({node, ...props}) => <h3 style={{ color: '#e2e8f0', fontSize: '13px' }} {...props} />,
-              p: ({node, ...props}) => <p style={{ marginBottom: '10px' }} {...props} />,
-              ul: ({node, ...props}) => <ul style={{ paddingLeft: '20px', marginBottom: '10px' }} {...props} />,
-              li: ({node, ...props}) => <li style={{ marginBottom: '4px' }} {...props} />,
-              strong: ({node, ...props}) => <strong style={{ color: '#f8fafc' }} {...props} />,
-              a: ({node, ...props}) => <a style={{ color: '#3b82f6', textDecoration: 'none' }} target="_blank" rel="noopener noreferrer" {...props} />
+              h1: ({node, ...props}) => <h1 style={{ color: '#ffffff', fontSize: '16px', fontWeight: 700, borderBottom: '1px solid #334155', paddingBottom: '6px', marginTop: '12px', marginBottom: '10px' }} {...props} />,
+              h2: ({node, ...props}) => <h2 style={{ color: '#ffffff', fontSize: '14px', fontWeight: 600, marginTop: '14px', marginBottom: '8px' }} {...props} />,
+              h3: ({node, ...props}) => <h3 style={{ color: '#f1f5f9', fontSize: '13px', fontWeight: 600, marginTop: '12px', marginBottom: '6px' }} {...props} />,
+              p: ({node, ...props}) => <p style={{ color: '#cbd5e1', fontSize: '12px', marginBottom: '10px', lineHeight: '1.6', wordBreak: 'normal', overflowWrap: 'break-word' }} {...props} />,
+              ul: ({node, ...props}) => <ul style={{ color: '#cbd5e1', paddingLeft: '20px', marginBottom: '10px' }} {...props} />,
+              ol: ({node, ...props}) => <ol style={{ color: '#cbd5e1', paddingLeft: '20px', marginBottom: '10px' }} {...props} />,
+              li: ({node, ...props}) => <li style={{ color: '#cbd5e1', marginBottom: '4px', lineHeight: '1.5' }} {...props} />,
+              strong: ({node, ...props}) => <strong style={{ color: '#ffffff', fontWeight: 700 }} {...props} />,
+              code: ({node, ...props}) => <code style={{ background: '#0f172a', color: '#38bdf8', padding: '2px 4px', borderRadius: '4px', fontSize: '11px' }} {...props} />,
+              a: ({node, ...props}) => <a style={{ color: '#38bdf8', textDecoration: 'underline' }} target="_blank" rel="noopener noreferrer" {...props} />
             }}
           >
             {markdown}
