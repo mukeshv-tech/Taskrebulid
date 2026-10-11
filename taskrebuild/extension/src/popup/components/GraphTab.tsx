@@ -38,7 +38,8 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
       setRawEdges(data.edges || []);
       
       const clusterData = await getClusters(taskId);
-      setClusters(clusterData.clusters || []);
+      const list = Array.isArray(clusterData) ? clusterData : (clusterData?.clusters || []);
+      setClusters(list);
     } catch (e: any) {
       console.error(e);
       setError('Failed to load graph data.');
@@ -68,11 +69,12 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
     setError('');
     try {
       const res = await generateClusters(taskId);
-      setClusters(res.clusters || []);
+      const list = Array.isArray(res) ? res : (res?.clusters || []);
+      setClusters(list);
       setColorByCluster(true);
     } catch (e: any) {
       console.error(e);
-      setError('Clustering failed.');
+      setError(e.message || 'Clustering failed.');
     } finally {
       setIsClustering(false);
     }
@@ -105,7 +107,10 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
 
       // Cluster coloring override
       if (colorByCluster && clusters.length > 0) {
-        const cIndex = clusters.findIndex(c => c.node_ids.includes(n.id));
+        const cIndex = clusters.findIndex(c => {
+          const ids = c.node_ids || c.members?.map((m: any) => m.node_id) || [];
+          return ids.includes(n.id);
+        });
         if (cIndex !== -1) {
           bg = '#1e1e1e';
           border = CLUSTER_COLORS[cIndex % CLUSTER_COLORS.length];
@@ -216,15 +221,19 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
             </label>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '150px', overflowY: 'auto' }}>
-            {clusters.map((c, i) => (
-              <div key={i} style={{ borderLeft: `3px solid ${CLUSTER_COLORS[i % CLUSTER_COLORS.length]}`, paddingLeft: '8px' }}>
-                <strong style={{ color: '#f8fafc', fontSize: '11px' }}>{c.cluster_name}</strong>
-                <p style={{ margin: '2px 0 0 0', color: '#94a3b8', fontSize: '10px' }}>{c.summary}</p>
-                <div style={{ marginTop: '2px', color: '#64748b', fontSize: '9px' }}>
-                  {c.node_ids.length} nodes assigned
+            {clusters.map((c, i) => {
+              const nodeCount = (c.node_ids || c.members || []).length;
+              const name = c.cluster_name || c.label || `Cluster ${i + 1}`;
+              return (
+                <div key={i} style={{ borderLeft: `3px solid ${CLUSTER_COLORS[i % CLUSTER_COLORS.length]}`, paddingLeft: '8px' }}>
+                  <strong style={{ color: '#f8fafc', fontSize: '11px' }}>{name}</strong>
+                  <p style={{ margin: '2px 0 0 0', color: '#94a3b8', fontSize: '10px' }}>{c.summary}</p>
+                  <div style={{ marginTop: '2px', color: '#64748b', fontSize: '9px' }}>
+                    {nodeCount} nodes assigned
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
