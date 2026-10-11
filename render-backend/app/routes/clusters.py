@@ -13,18 +13,23 @@ class ClusterResponse(BaseModel):
     rationale: str
     members: List[Dict[str, Any]]
 
-@router.post("/generate", response_model=Dict[str, str])
-async def trigger_cluster_generation(task_id: str, background_tasks: BackgroundTasks, user = Depends(get_current_user)):
+@router.post("/generate", response_model=Dict[str, Any])
+@router.post("", response_model=Dict[str, Any])
+async def trigger_cluster_generation(task_id: str, user = Depends(get_current_user)):
     """
     Triggers dynamic re-clustering of a task's sub-tasks based on current knowledge graph relationships.
-    Runs asynchronously since LLM graph analysis can take a few seconds.
+    Returns the generated clusters directly so the frontend can update immediately.
     """
     user_id = user.id
-    
-    # Run the generation in the background
-    background_tasks.add_task(generate_clusters_for_task, task_id, user_id)
-    
-    return {"status": "clustering_started", "message": "Clustering process initiated in the background."}
+    try:
+        clusters = generate_clusters_for_task(task_id, user_id)
+        return {
+            "status": "success",
+            "message": f"Successfully generated {len(clusters)} clusters.",
+            "clusters": clusters
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("", response_model=List[Dict[str, Any]])
 async def fetch_task_clusters(task_id: str, user = Depends(get_current_user)):

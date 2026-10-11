@@ -28,10 +28,14 @@ const ClustersTab: React.FC<ClustersTabProps> = ({ taskId }) => {
     setGenerating(true);
     setError('');
     try {
-      await fetchApi(`/api/tasks/${taskId}/clusters/generate`, { method: 'POST' });
-      alert('Cluster generation started! Check back in a few seconds.');
+      const res = await fetchApi(`/api/tasks/${taskId}/clusters/generate`, { method: 'POST' });
+      if (res && res.clusters) {
+        setClusters(res.clusters);
+      } else {
+        await loadClusters();
+      }
     } catch (e: any) {
-      setError(e.message || 'Failed to trigger generation');
+      setError(e.message || 'Failed to generate clusters');
     } finally {
       setGenerating(false);
     }

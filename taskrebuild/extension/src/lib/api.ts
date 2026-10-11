@@ -95,5 +95,5 @@ export const checkAllMonitored = () => fetchApi(`/api/monitoring/check-all`, { m
 export const generateLearningPath = (taskId: string) => fetchApi(`/api/tasks/${taskId}/learning-path`, { method: 'POST' });
 export const getLearningPath = (taskId: string) => fetchApi(`/api/tasks/${taskId}/learning-path`);
 
-export const generateClusters = (taskId: string) => fetchApi(`/api/tasks/${taskId}/clusters`, { method: 'POST' });
+export const generateClusters = (taskId: string) => fetchApi(`/api/tasks/${taskId}/clusters/generate`, { method: 'POST' });
 export const getClusters = (taskId: string) => fetchApi(`/api/tasks/${taskId}/clusters`);
