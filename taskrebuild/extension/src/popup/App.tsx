@@ -30,6 +30,17 @@ const App: React.FC = () => {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeTaskName, setActiveTaskName] = useState<string | null>(null);
 
+  const selectTask = (task: any) => {
+    setSelectedTask(task);
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      if (task && task.id) {
+        chrome.storage.local.set({ selectedTaskId: task.id });
+      } else {
+        chrome.storage.local.remove(['selectedTaskId']);
+      }
+    }
+  };
+
   useEffect(() => {
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -85,13 +96,22 @@ const App: React.FC = () => {
       setAiError('');
       const analyses = await getTaskAIAnalyses(taskId);
       if (analyses && analyses.length > 0) {
-        setAiAnalysis(analyses[0]); // Load the most recent one
+        const match = analyses.find((a: any) => 
+          a.analysis_type === 'full_task_analysis' || 
+          (a.result && (a.result.task_summary !== undefined || a.result.topics !== undefined))
+        ) || analyses[0];
+
+        if (match && match.result && !match.result.markdown) {
+          setAiAnalysis(match);
+        } else {
+          setAiAnalysis(null);
+        }
       } else {
         setAiAnalysis(null);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      // Don't show error to user just because none exist or api is down initially
+      setAiError(e.message || 'Failed to load AI analysis');
     }
   };
 
@@ -99,6 +119,17 @@ const App: React.FC = () => {
     try {
       const data = await fetchApi('/api/tasks');
       setTasks(data);
+
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get(['selectedTaskId'], (result) => {
+          if (result && result.selectedTaskId && data && data.length > 0) {
+            const found = data.find((t: any) => t.id === result.selectedTaskId);
+            if (found) {
+              setSelectedTask(found);
+            }
+          }
+        });
+      }
     } catch (e) {
       console.error(e);
     }
@@ -125,9 +156,10 @@ const App: React.FC = () => {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setSession(null);
-    chrome.storage.local.remove(['activeTaskId', 'activeTaskName']);
+    chrome.storage.local.remove(['activeTaskId', 'activeTaskName', 'selectedTaskId']);
     setActiveTaskId(null);
     setActiveTaskName(null);
+    setSelectedTask(null);
   };
 
   const handleCreateTask = async () => {
@@ -149,7 +181,7 @@ const App: React.FC = () => {
     e.stopPropagation(); 
     try {
       await fetchApi(`/api/tasks/${id}`, { method: 'DELETE' });
-      if (selectedTask?.id === id) setSelectedTask(null);
+      if (selectedTask?.id === id) selectTask(null);
       if (activeTaskId === id) {
         chrome.storage.local.remove(['activeTaskId', 'activeTaskName']);
         setActiveTaskId(null);
@@ -226,6 +258,7 @@ const App: React.FC = () => {
   const handleDeleteAnalysis = async () => {
     try {
       await deleteTaskAIAnalysis(selectedTask.id);
+      setAiAnalysis(null);
       loadAiAnalyses(selectedTask.id);
     } catch (e) {
       console.error(e);
@@ -273,7 +306,7 @@ const App: React.FC = () => {
     const isActive = activeTaskId === selectedTask.id;
     return (
       <div className="popup-container">
-        <button className="back-btn" onClick={() => setSelectedTask(null)}>← Back to tasks</button>
+        <button className="back-btn" onClick={() => selectTask(null)}>← Back to tasks</button>
         <h2>📁 {selectedTask.name}</h2>
         <p style={{ fontSize: '12px', color: '#6b7280' }}>
           Created: {new Date(selectedTask.created_at).toLocaleDateString('en-US')}
@@ -462,13 +495,11 @@ const App: React.FC = () => {
           )}
         </div>
         
-        
         <SearchTab taskId={selectedTask.id} />
         <GraphTab taskId={selectedTask.id} />
         <ClustersTab taskId={selectedTask.id} />
         <LearningPathTab taskId={selectedTask.id} />
 
-        
         <button className="delete-task-btn" onClick={(e) => handleDeleteTask(e, selectedTask.id)} style={{ marginTop: '20px' }}>Delete Task</button>
       </div>
     );
@@ -494,18 +525,16 @@ const App: React.FC = () => {
         )}
       </div>
       
-      
       <SearchTab onNavigateToTask={(tid) => {
         const t = tasks.find(x => x.id === tid);
-        if (t) setSelectedTask(t);
+        if (t) selectTask(t);
       }} />
       
       <div className="tasks-section">
-
         <h3>My Tasks</h3>
         <ul className="task-list">
           {tasks.map(t => (
-            <li key={t.id} onClick={() => setSelectedTask(t)} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <li key={t.id} onClick={() => selectTask(t)} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>
                 📁 {t.name}
                 {t.id === activeTaskId && <span style={{ marginLeft: '5px', color: '#10b981', fontSize: '10px' }}>●</span>}

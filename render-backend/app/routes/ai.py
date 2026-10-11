@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from typing import List
+from typing import List, Optional
 from app.auth import get_current_user
 from app.supabase import get_supabase
 from app.config import settings
@@ -14,7 +14,7 @@ async def analyze_task(task_id: str, user = Depends(get_current_user)):
     
     # Verify ownership
     task_res = supabase.table("tasks").select("*").eq("id", task_id).execute()
-    if not task_res.data or task_res.data[0]["user_id"] != user.id:
+    if not task_res.data or str(task_res.data[0]["user_id"]) != str(user.id):
         raise HTTPException(status_code=403, detail="Not authorized or task not found")
     
     task_name = task_res.data[0]["name"]
@@ -57,18 +57,22 @@ async def analyze_task(task_id: str, user = Depends(get_current_user)):
     return insert_res.data[0]
 
 @router.get("/api/tasks/{task_id}/ai/analyses")
-def list_analyses(task_id: str, user = Depends(get_current_user)):
+def list_analyses(task_id: str, analysis_type: Optional[str] = "full_task_analysis", user = Depends(get_current_user)):
     supabase = get_supabase()
     # verify ownership
     task_res = supabase.table("tasks").select("user_id").eq("id", task_id).execute()
-    if not task_res.data or task_res.data[0]["user_id"] != user.id:
+    if not task_res.data or str(task_res.data[0]["user_id"]) != str(user.id):
         raise HTTPException(status_code=403, detail="Not authorized or task not found")
 
-    res = supabase.table("task_ai_analyses").select("*").eq("task_id", task_id).order("created_at", desc=True).execute()
+    query = supabase.table("task_ai_analyses").select("*").eq("task_id", task_id)
+    if analysis_type:
+        query = query.eq("analysis_type", analysis_type)
+        
+    res = query.order("created_at", desc=True).execute()
     return res.data
 
 @router.delete("/api/tasks/{task_id}/ai/analyses")
-def clear_analyses(task_id: str, user = Depends(get_current_user)):
+def clear_analyses(task_id: str, analysis_type: Optional[str] = "full_task_analysis", user = Depends(get_current_user)):
     supabase = get_supabase()
     
     # Verify ownership
@@ -76,7 +80,11 @@ def clear_analyses(task_id: str, user = Depends(get_current_user)):
     if not task_res.data:
         raise HTTPException(status_code=403, detail="Task not found or not owned by user")
         
-    result = supabase.table("task_ai_analyses").delete().eq("task_id", task_id).eq("user_id", user.id).execute()
+    query = supabase.table("task_ai_analyses").delete().eq("task_id", task_id).eq("user_id", user.id)
+    if analysis_type:
+        query = query.eq("analysis_type", analysis_type)
+        
+    result = query.execute()
     return {"status": "success", "deleted_count": len(result.data)}
 
 @router.delete("/api/tasks/{task_id}/ai/analyses/{analysis_id}")
