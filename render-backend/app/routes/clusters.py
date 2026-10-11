@@ -22,7 +22,7 @@ async def trigger_cluster_generation(task_id: str, user = Depends(get_current_us
     """
     user_id = user.id
     try:
-        clusters = generate_clusters_for_task(task_id, user_id)
+        clusters = await generate_clusters_for_task(task_id, user_id)
         return {
             "status": "success",
             "message": f"Successfully generated {len(clusters)} clusters.",
