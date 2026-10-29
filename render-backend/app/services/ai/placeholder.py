@@ -1,3 +1,4 @@
+from typing import Dict, Any, List
 from .interface import AIProvider
 from .schemas import AIAnalysisInput, AIAnalysisResult, AIGraphAnalysisResult, AIResumeInput, AIResumeResult
 
@@ -42,3 +43,21 @@ class PlaceholderAIProvider(AIProvider):
                 )
             ]
         )
+
+    async def suggest_knowledge(self, task_data: Dict[str, Any], existing_knowledge: List[Dict[str, Any]] = None) -> Dict[str, Any]:
+        task_name = task_data.get("name", "Task")
+        return {
+            "suggestions": [
+                {
+                    "type": "concept",
+                    "title": f"Key concept in {task_name}",
+                    "summary": f"Foundational understanding extracted from {task_name}.",
+                    "content": f"Detailed notes on {task_name} for future reuse across different tasks.",
+                    "confidence": 0.8,
+                    "source_name": task_name,
+                    "source_type": "task",
+                    "source_id": task_data.get("id")
+                }
+            ],
+            "suggested_relationships": []
+        }

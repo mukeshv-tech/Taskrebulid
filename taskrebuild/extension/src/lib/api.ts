@@ -113,3 +113,78 @@ export const getLearningPath = (taskId: string) => fetchApi(`/api/tasks/${taskId
 
 export const generateClusters = (taskId: string) => fetchApi(`/api/tasks/${taskId}/clusters/generate`, { method: 'POST' });
 export const getClusters = (taskId: string) => fetchApi(`/api/tasks/${taskId}/clusters`);
+
+// Phase 9: Personal Knowledge System API
+export const listKnowledge = (params: { type?: string, status?: string, task_id?: string, source_id?: string, limit?: number, offset?: number } = {}) => {
+  const query = new URLSearchParams();
+  if (params.type) query.set('type', params.type);
+  if (params.status) query.set('status', params.status);
+  if (params.task_id) query.set('task_id', params.task_id);
+  if (params.source_id) query.set('source_id', params.source_id);
+  if (params.limit) query.set('limit', String(params.limit));
+  if (params.offset) query.set('offset', String(params.offset));
+  return fetchApi(`/api/knowledge?${query.toString()}`);
+};
+
+export const getKnowledgeDetail = (id: string) => fetchApi(`/api/knowledge/${id}`);
+
+export const createKnowledge = (data: {
+  type: string;
+  title: string;
+  content: string;
+  summary?: string;
+  origin?: string;
+  confidence?: number;
+  sources?: any[];
+  related_knowledge_ids?: string[];
+}) => fetchApi('/api/knowledge', { method: 'POST', body: JSON.stringify(data) });
+
+export const updateKnowledge = (id: string, data: { title?: string; type?: string; content?: string; summary?: string }) =>
+  fetchApi(`/api/knowledge/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+
+export const deleteKnowledge = (id: string) => fetchApi(`/api/knowledge/${id}`, { method: 'DELETE' });
+
+export const archiveKnowledge = (id: string) => fetchApi(`/api/knowledge/${id}/archive`, { method: 'POST' });
+export const restoreKnowledge = (id: string) => fetchApi(`/api/knowledge/${id}/restore`, { method: 'POST' });
+
+export const checkKnowledgeDuplicate = (title: string) =>
+  fetchApi('/api/knowledge/check-duplicate', { method: 'POST', body: JSON.stringify({ title }) });
+
+export const getKnowledgeRelatedGraph = (id: string, depth = 1) =>
+  fetchApi(`/api/knowledge/${id}/related?depth=${depth}`);
+
+export const createKnowledgeRelationship = (id: string, target_knowledge_id: string, relationship_type: string) =>
+  fetchApi(`/api/knowledge/${id}/relationships`, {
+    method: 'POST',
+    body: JSON.stringify({ target_knowledge_id, relationship_type })
+  });
+
+export const deleteKnowledgeRelationship = (id: string, relationshipId: string) =>
+  fetchApi(`/api/knowledge/${id}/relationships/${relationshipId}`, { method: 'DELETE' });
+
+export const getKnowledgeSources = (id: string) => fetchApi(`/api/knowledge/${id}/sources`);
+
+export const addKnowledgeSource = (id: string, source: { source_type: string; source_id?: string; source_name?: string; metadata?: any }) =>
+  fetchApi(`/api/knowledge/${id}/sources`, { method: 'POST', body: JSON.stringify(source) });
+
+export const deleteKnowledgeSource = (id: string, sourceId: string) =>
+  fetchApi(`/api/knowledge/${id}/sources/${sourceId}`, { method: 'DELETE' });
+
+export const getTaskKnowledgeSuggestions = (taskId: string) =>
+  fetchApi(`/api/tasks/${taskId}/knowledge/suggestions`, { method: 'POST' });
+
+export const saveTaskAsKnowledge = (taskId: string, data: {
+  title: string;
+  type?: string;
+  content?: string;
+  summary?: string;
+  include_summary_as_source?: boolean;
+  include_task_as_source?: boolean;
+}) => fetchApi(`/api/tasks/${taskId}/knowledge/save-from-task`, { method: 'POST', body: JSON.stringify(data) });
+
+export const saveResourceAsKnowledge = (taskId: string, resourceId: string, data: {
+  title?: string;
+  type?: string;
+  content?: string;
+  summary?: string;
+}) => fetchApi(`/api/tasks/${taskId}/knowledge/resources/${resourceId}/save-as-knowledge`, { method: 'POST', body: JSON.stringify(data) });

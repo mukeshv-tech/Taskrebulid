@@ -1,12 +1,7 @@
 from fastapi import FastAPI
-
 from fastapi.middleware.cors import CORSMiddleware
-
-from app.routes import health, auth, tasks, resources, activity, ai, graph, resume, monitoring, search, debug, metrics
-
+from app.routes import health, auth, tasks, resources, activity, ai, graph, resume, monitoring, search, debug, metrics, clusters, knowledge
 from app.config import settings
-
-
 
 from contextlib import asynccontextmanager
 import asyncio
@@ -14,26 +9,16 @@ from app.services.cron_monitor import run_cron_monitor
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Start the backend cron job
     cron_task = asyncio.create_task(run_cron_monitor())
     yield
     cron_task.cancel()
 
 from fastapi.responses import HTMLResponse
 
-
 description = """
 # Welcome to the TaskRebuild API 🚀
 
-TaskRebuild is an intelligent, context-aware productivity backend that automatically tracks your browsing activity, captures resources, and maps your workflow into an advanced vector-searchable Knowledge Graph.
-
-## Core Engines
-* **Google-Clone RRF Search**: A 3072-dimension semantic search engine powered by Gemini AI, merged with PostgreSQL Trigrams and Full-Text Reciprocal Rank Fusion.
-* **Knowledge Graph**: Every task, resource, and browser session is mapped into a dynamic graph to help you understand how your workflows connect.
-* **Live System Metrics**: Asynchronous, zero-latency monitoring of RAM, Python runtime, and vector counts.
-
-### Getting Started
-Use the interactive client on the right to instantly test any endpoint. All requests require your Supabase Auth JWT token in the `Authorization: Bearer` header.
+TaskRebuild is an intelligent, context-aware productivity backend that automatically tracks your browsing activity, captures resources, and maps your workflow into an advanced vector-searchable Knowledge Graph and Personal Knowledge System.
 """
 
 app = FastAPI(
@@ -44,7 +29,6 @@ app = FastAPI(
     docs_url=None, 
     redoc_url=None
 )
-
 
 @app.get("/docs", include_in_schema=False)
 async def custom_docs():
@@ -60,7 +44,6 @@ async def custom_docs():
         </style>
     </head>
     <body>
-        <!-- Inject Scalar API Reference -->
         <script 
             id="api-reference" 
             data-url="{app.openapi_url}" 
@@ -73,52 +56,28 @@ async def custom_docs():
     """
     return HTMLResponse(html)
 
-
-
-
-
-# CORS setup
-
 origins = settings.ALLOWED_ORIGINS.split(",") if settings.ALLOWED_ORIGINS else []
 
-
-
 app.add_middleware(
-
     CORSMiddleware,
-
     allow_origins=origins,
-
     allow_credentials=True,
-
     allow_methods=["*"],
-
     allow_headers=["*"],
-
 )
 
-
-
 app.include_router(health.router)
-
 app.include_router(auth.router)
-
 app.include_router(tasks.router)
-
 app.include_router(resources.router)
-
 app.include_router(activity.router)
-
 app.include_router(ai.router)
-
 app.include_router(graph.router)
 app.include_router(debug.router)
 app.include_router(metrics.router)
-from app.routes import clusters
 app.include_router(clusters.router)
-
 app.include_router(resume.router)
-
 app.include_router(monitoring.router)
 app.include_router(search.router)
-
+app.include_router(knowledge.router)
+app.include_router(knowledge.task_router)

@@ -1,6 +1,6 @@
 import logging
 from fastapi import HTTPException
-from typing import Any
+from typing import Any, Dict, List
 from app.config import settings
 from .interface import AIProvider
 from .placeholder import PlaceholderAIProvider
@@ -40,7 +40,6 @@ class AIService:
         
         provider = self.providers.get(settings.TASK_AI_PROVIDER, self.placeholder)
         if provider == self.placeholder:
-            # Provide debug info about WHY it fell back
             keys_set = []
             if settings.GEMINI_API_KEY: keys_set.append("GEMINI")
             if settings.GROQ_API_KEY: keys_set.append("GROQ")
@@ -71,7 +70,6 @@ class AIService:
             logger.error(f"AI graph analysis failed: {e}")
             raise HTTPException(status_code=500, detail=f"AI graph analysis failed: {e}")
 
-
     async def analyze_resume(self, input_data: Any) -> Any:
         if not settings.AI_ENABLED:
             raise HTTPException(status_code=503, detail="AI analysis is temporarily unavailable or disabled.")
@@ -89,7 +87,6 @@ class AIService:
             logger.error(f"AI resume analysis failed: {e}")
             raise HTTPException(status_code=500, detail=f"AI resume analysis failed: {e}")
 
-
     async def analyze_replacement(self, original_resource: dict, task_name: str, existing_resources: list, task_graph: dict) -> Any:
         if not settings.AI_ENABLED:
             raise HTTPException(status_code=503, detail="AI analysis is temporarily unavailable or disabled.")
@@ -105,7 +102,6 @@ class AIService:
             logger.error(f"AI replacement analysis failed: {e}")
             raise HTTPException(status_code=500, detail=f"AI replacement analysis failed: {e}")
 
-
     async def generate_learning_path(self, task_name: str, nodes: list, edges: list) -> str:
         if not settings.AI_ENABLED:
             raise HTTPException(status_code=503, detail="AI analysis is temporarily unavailable or disabled.")
@@ -119,5 +115,29 @@ class AIService:
         except Exception as e:
             logger.error(f"AI learning path generation failed: {e}")
             raise HTTPException(status_code=500, detail=f"AI learning path failed: {e}")
+
+    async def suggest_knowledge(self, task_data: Dict[str, Any], existing_knowledge: List[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Suggests knowledge items and relationships based on task content, falling back safely."""
+        if not settings.AI_ENABLED:
+            return await self.placeholder.suggest_knowledge(task_data, existing_knowledge)
+
+        preferred = settings.TASK_AI_PROVIDER or 'gemini'
+        provider = self.providers.get(preferred)
+        
+        if not provider:
+            # Fall back to any available configured provider, or placeholder
+            for p in self.providers.values():
+                provider = p
+                break
+
+        if not provider:
+            provider = self.placeholder
+
+        try:
+            raw_result = await provider.suggest_knowledge(task_data, existing_knowledge)
+            return raw_result
+        except Exception as e:
+            logger.warning(f"AI provider {provider} suggest_knowledge failed: {e}. Falling back to placeholder.")
+            return await self.placeholder.suggest_knowledge(task_data, existing_knowledge)
 
 ai_service = AIService()

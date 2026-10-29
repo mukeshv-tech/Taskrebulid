@@ -8,6 +8,7 @@ import ResumeSection from './components/ResumeSection';
 import ResourceMonitor from './components/ResourceMonitor';
 import Auth from './components/Auth';
 import ClustersTab from './components/ClustersTab';
+import KnowledgeTab from './components/KnowledgeTab';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -499,6 +500,7 @@ const App: React.FC = () => {
         <GraphTab taskId={selectedTask.id} />
         <ClustersTab taskId={selectedTask.id} />
         <LearningPathTab taskId={selectedTask.id} />
+        <KnowledgeTab taskId={selectedTask.id} taskName={selectedTask.name} />
 
         <button className="delete-task-btn" onClick={(e) => handleDeleteTask(e, selectedTask.id)} style={{ marginTop: '20px' }}>Delete Task</button>
       </div>
@@ -530,6 +532,8 @@ const App: React.FC = () => {
         if (t) selectTask(t);
       }} />
       
+      <KnowledgeTab />
+
       <div className="tasks-section">
         <h3>My Tasks</h3>
         <ul className="task-list">
