@@ -5,4 +5,4 @@ router = APIRouter()
 @router.head("/health", include_in_schema=False)
 @router.get("/health")
 def health_check():
-    return {"status": "Everything good gng"}
+    return {"status": "ok"}
