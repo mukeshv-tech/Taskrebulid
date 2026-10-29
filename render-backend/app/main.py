@@ -1,5 +1,9 @@
+import os
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse, FileResponse
 from app.routes import health, auth, tasks, resources, activity, ai, graph, resume, monitoring, search, debug, metrics, clusters, knowledge
 from app.config import settings
 
@@ -12,8 +16,6 @@ async def lifespan(app: FastAPI):
     cron_task = asyncio.create_task(run_cron_monitor())
     yield
     cron_task.cancel()
-
-from fastapi.responses import HTMLResponse
 
 description = """
 # Welcome to the TaskRebuild API 🚀
@@ -66,6 +68,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# API Routers
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(tasks.router)
@@ -81,3 +84,17 @@ app.include_router(monitoring.router)
 app.include_router(search.router)
 app.include_router(knowledge.router)
 app.include_router(knowledge.task_router)
+
+# Static Frontend Assets & Primary Root Web Page
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+if STATIC_DIR.exists():
+    assets_dir = STATIC_DIR / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+    @app.get("/", include_in_schema=False)
+    async def serve_homepage():
+        index_file = STATIC_DIR / "index.html"
+        if index_file.exists():
+            return FileResponse(index_file)
+        return {"status": "ok", "message": "TaskRebuild API"}
