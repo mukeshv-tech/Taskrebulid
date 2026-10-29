@@ -83,9 +83,11 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (selectedTask) {
-      loadResources(selectedTask.id);
-      loadActivity(selectedTask.id);
-      loadAiAnalyses(selectedTask.id);
+      Promise.all([
+        loadResources(selectedTask.id),
+        loadActivity(selectedTask.id),
+        loadAiAnalyses(selectedTask.id)
+      ]);
       setShowAddForm(false);
       setNewUrl('');
       setNewTitle('');
