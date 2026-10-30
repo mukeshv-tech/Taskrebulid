@@ -1,5 +1,5 @@
 // TaskRebuild Floating In-Page Quick-Capture Script
-// Mounts an isolated Shadow DOM UI for zero style interference.
+// Mounts an isolated Shadow DOM UI for zero style interference with task selection support.
 
 (function () {
   console.log('TaskRebuild quick-capture content script active');
@@ -11,11 +11,9 @@
   let toastEl: HTMLDivElement | null = null;
 
   let currentSelectedText = '';
-  let activeContext: { activeTaskId: string | null; activeTaskName: string | null; hasSession: boolean } = {
-    activeTaskId: null,
-    activeTaskName: null,
-    hasSession: false
-  };
+  let availableTasks: Array<{ id: string; name: string }> = [];
+  let selectedTaskId: string | null = null;
+  let selectedTaskName: string | null = null;
 
   // 1. Initialize Root & Shadow DOM
   function initHost() {
@@ -27,7 +25,7 @@
     hostElement.style.top = '0';
     hostElement.style.left = '0';
     hostElement.style.zIndex = '2147483647';
-    hostElement.style.pointerEvents = 'none'; // allow click through except on UI
+    hostElement.style.pointerEvents = 'none';
 
     shadowRoot = hostElement.attachShadow({ mode: 'open' });
 
@@ -71,7 +69,7 @@
         position: absolute;
         display: none;
         flex-direction: column;
-        width: 330px;
+        width: 340px;
         background: #0f172a;
         color: #f1f5f9;
         border: 1px solid #334155;
@@ -85,17 +83,18 @@
         justify-content: space-between;
         margin-bottom: 10px;
       }
-      .tr-badge {
-        font-size: 11px;
-        background: #1e293b;
+      .tr-header-title {
+        font-size: 13px;
+        font-weight: 700;
         color: #38bdf8;
-        padding: 2px 8px;
-        border-radius: 6px;
-        font-weight: 500;
-        max-width: 220px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .tr-header-title svg {
+        width: 15px;
+        height: 15px;
+        fill: #38bdf8;
       }
       .tr-close {
         background: none;
@@ -132,8 +131,15 @@
         border-color: #38bdf8;
       }
       .tr-textarea {
-        height: 65px;
+        height: 60px;
         resize: none;
+      }
+      .tr-row {
+        display: flex;
+        gap: 8px;
+      }
+      .tr-row > div {
+        flex: 1;
       }
       .tr-actions {
         display: flex;
@@ -142,13 +148,13 @@
       }
       .tr-btn {
         flex: 1;
-        padding: 7px 10px;
+        padding: 8px 10px;
         border-radius: 6px;
         font-size: 11px;
         font-weight: 600;
         cursor: pointer;
         border: none;
-        transition: opacity 0.15s;
+        transition: opacity 0.15s, background 0.15s;
         text-align: center;
       }
       .tr-btn-primary {
@@ -197,26 +203,42 @@
     });
     shadowRoot.appendChild(triggerBubble);
 
-    // Capture Modal Card
+    // Capture Modal Card with Task Chooser
     captureModal = document.createElement('div');
     captureModal.className = 'tr-card tr-pointer';
     captureModal.innerHTML = `
       <div class="tr-header">
-        <span class="tr-badge" id="tr-task-label">Active Task: None</span>
+        <div class="tr-header-title">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+          <span>TaskRebuild Quick-Capture</span>
+        </div>
         <button class="tr-close" id="tr-btn-close">&times;</button>
       </div>
-      <div class="tr-label">Type</div>
-      <select class="tr-select" id="tr-type-select">
-        <option value="insight">Insight</option>
-        <option value="concept">Concept</option>
-        <option value="note" selected>Note</option>
-        <option value="question">Question</option>
-        <option value="resource">Resource</option>
+
+      <div class="tr-label">Target Task</div>
+      <select class="tr-select" id="tr-task-select">
+        <option value="">(Loading tasks...)</option>
       </select>
+
+      <div class="tr-row">
+        <div>
+          <div class="tr-label">Type</div>
+          <select class="tr-select" id="tr-type-select">
+            <option value="insight">Insight</option>
+            <option value="concept">Concept</option>
+            <option value="note" selected>Note</option>
+            <option value="question">Question</option>
+            <option value="resource">Resource</option>
+          </select>
+        </div>
+      </div>
+
       <div class="tr-label">Title</div>
-      <input type="text" class="tr-input" id="tr-title-input" placeholder="Knowledge Title" />
-      <div class="tr-label">Selected Text</div>
+      <input type="text" class="tr-input" id="tr-title-input" placeholder="Title or Summary" />
+
+      <div class="tr-label">Selected Content</div>
       <textarea class="tr-textarea" id="tr-content-input"></textarea>
+
       <div class="tr-actions">
         <button class="tr-btn tr-btn-primary" id="tr-btn-save-knowledge">Save Knowledge</button>
         <button class="tr-btn tr-btn-secondary" id="tr-btn-save-resource">Save as URL</button>
@@ -231,9 +253,16 @@
     toastEl.innerHTML = `<span>✓</span> <span id="tr-toast-msg">Saved to TaskRebuild</span>`;
     shadowRoot.appendChild(toastEl);
 
-    // Attach button actions
+    // Attach event listeners
     const closeBtn = captureModal.querySelector('#tr-btn-close');
     closeBtn?.addEventListener('click', hideAll);
+
+    const taskSelect = captureModal.querySelector('#tr-task-select') as HTMLSelectElement;
+    taskSelect?.addEventListener('change', (e: any) => {
+      selectedTaskId = e.target.value || null;
+      const found = availableTasks.find((t) => t.id === selectedTaskId);
+      selectedTaskName = found ? found.name : null;
+    });
 
     const saveKnowledgeBtn = captureModal.querySelector('#tr-btn-save-knowledge');
     saveKnowledgeBtn?.addEventListener('click', handleSaveKnowledge);
@@ -259,24 +288,54 @@
     if (captureModal) captureModal.style.display = 'none';
   }
 
+  function populateTaskOptions(taskSelect: HTMLSelectElement) {
+    taskSelect.innerHTML = '';
+
+    if (!availableTasks || availableTasks.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'No tasks found (General / Standalone)';
+      taskSelect.appendChild(opt);
+      return;
+    }
+
+    // Optional General / Standalone choice
+    const genOpt = document.createElement('option');
+    genOpt.value = '';
+    genOpt.textContent = '-- General / None --';
+    taskSelect.appendChild(genOpt);
+
+    availableTasks.forEach((task) => {
+      const opt = document.createElement('option');
+      opt.value = task.id;
+      opt.textContent = task.name;
+      if (task.id === selectedTaskId) {
+        opt.selected = true;
+      }
+      taskSelect.appendChild(opt);
+    });
+  }
+
   function openModal() {
     if (!captureModal || !triggerBubble) return;
 
-    // Refresh context from background
+    const taskSelect = captureModal.querySelector('#tr-task-select') as HTMLSelectElement;
+    const titleInput = captureModal.querySelector('#tr-title-input') as HTMLInputElement;
+    const contentInput = captureModal.querySelector('#tr-content-input') as HTMLTextAreaElement;
+
+    // Load available tasks and current active task context
     chrome.runtime.sendMessage({ action: 'GET_ACTIVE_CONTEXT' }, (res) => {
       if (res) {
-        activeContext = res;
-        const taskLabel = captureModal?.querySelector('#tr-task-label');
-        if (taskLabel) {
-          taskLabel.textContent = res.activeTaskName ? `Task: ${res.activeTaskName}` : 'No Active Task Selected';
+        availableTasks = res.tasks || [];
+        selectedTaskId = res.activeTaskId || (availableTasks[0] ? availableTasks[0].id : null);
+        selectedTaskName = res.activeTaskName || (availableTasks[0] ? availableTasks[0].name : null);
+        if (taskSelect) {
+          populateTaskOptions(taskSelect);
         }
       }
     });
 
-    const titleInput = captureModal.querySelector('#tr-title-input') as HTMLInputElement;
-    const contentInput = captureModal.querySelector('#tr-content-input') as HTMLTextAreaElement;
-
-    // Suggest concise title
+    // Auto-suggest concise title
     const firstLine = currentSelectedText.split('\n')[0].trim();
     const suggestedTitle = firstLine.length > 50 ? firstLine.substring(0, 47) + '...' : firstLine || document.title;
 
@@ -303,7 +362,8 @@
       content: contentInput?.value.trim() || currentSelectedText,
       url: window.location.href,
       pageTitle: document.title,
-      taskId: activeContext.activeTaskId
+      taskId: selectedTaskId,
+      taskName: selectedTaskName
     };
 
     chrome.runtime.sendMessage({ action: 'SAVE_KNOWLEDGE_CAPTURE', payload }, (response) => {
@@ -317,16 +377,16 @@
   }
 
   function handleSaveResource() {
+    if (!selectedTaskId) {
+      alert('Please select a target task from the dropdown first.');
+      return;
+    }
+
     const payload = {
-      taskId: activeContext.activeTaskId,
+      taskId: selectedTaskId,
       url: window.location.href,
       title: document.title
     };
-
-    if (!payload.taskId) {
-      alert('Please select an active task in the TaskRebuild extension first.');
-      return;
-    }
 
     chrome.runtime.sendMessage({ action: 'SAVE_RESOURCE_CAPTURE', payload }, (response) => {
       if (response && response.success) {
@@ -342,7 +402,6 @@
   function onSelectionChange() {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) {
-      // Don't hide if the modal is currently open and being edited
       if (captureModal && captureModal.style.display === 'flex') return;
       if (triggerBubble) triggerBubble.style.display = 'none';
       return;
@@ -375,9 +434,8 @@
     }
   }
 
-  // Listen to user mouseup and keyup
+  // Mouse & Keyboard Event Listeners
   document.addEventListener('mouseup', (e) => {
-    // If click happened inside our shadow root, ignore
     if (hostElement && e.composedPath().includes(hostElement)) return;
     setTimeout(onSelectionChange, 20);
   });
@@ -387,7 +445,6 @@
     setTimeout(onSelectionChange, 20);
   });
 
-  // Clicking outside to dismiss
   document.addEventListener('mousedown', (e) => {
     if (hostElement && e.composedPath().includes(hostElement)) return;
     if (captureModal && captureModal.style.display === 'flex') {
