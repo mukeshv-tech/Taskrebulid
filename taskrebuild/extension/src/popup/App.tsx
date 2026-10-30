@@ -43,14 +43,49 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    // Check active session
+    // 1. First restore session from chrome.storage.local if available
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.get(['supabase-session', 'activeTaskId', 'activeTaskName'], async (result) => {
+        const sessionString = result?.['supabase-session'];
+        if (sessionString) {
+          try {
+            const parsedSession = typeof sessionString === 'string' ? JSON.parse(sessionString) : sessionString;
+            if (parsedSession?.access_token && parsedSession?.refresh_token) {
+              const { data, error } = await supabase.auth.setSession({
+                access_token: parsedSession.access_token,
+                refresh_token: parsedSession.refresh_token,
+              });
+              if (!error && data?.session) {
+                setSession(data.session);
+                chrome.storage.local.set({ 'supabase-session': JSON.stringify(data.session) });
+                loadTasks();
+              } else if (parsedSession) {
+                setSession(parsedSession);
+              }
+            }
+          } catch (e) {
+            console.error('Failed to restore session from storage', e);
+          }
+        }
+        if (result.activeTaskId) {
+          setActiveTaskId(result.activeTaskId);
+          setActiveTaskName(result.activeTaskName || null);
+        }
+      });
+    }
+
+    // 2. Check active session via Supabase
     supabase.auth.getSession().then(({ data: { session } }) => {
-      handleSessionSetup(session);
+      if (session) {
+        handleSessionSetup(session);
+      }
     });
 
-    // Listen for auth changes
+    // 3. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      handleSessionSetup(session);
+      if (session) {
+        handleSessionSetup(session);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -71,11 +106,7 @@ const App: React.FC = () => {
       });
       setTimeout(() => {
         loadTasks();
-      }, 500);
-    } else {
-      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.remove('supabase-session');
-      }
+      }, 300);
     }
   };
 
