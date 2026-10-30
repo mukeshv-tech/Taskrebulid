@@ -59,7 +59,6 @@ const App: React.FC = () => {
   const handleSessionSetup = (session: any) => {
     setSession(session);
     if (session) {
-      localStorage.setItem('supabase-session', JSON.stringify(session));
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         chrome.storage.local.set({ 'supabase-session': JSON.stringify(session) });
       }
@@ -74,7 +73,6 @@ const App: React.FC = () => {
         loadTasks();
       }, 500);
     } else {
-      localStorage.removeItem('supabase-session');
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         chrome.storage.local.remove('supabase-session');
       }

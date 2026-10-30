@@ -1,23 +1,23 @@
-import os
 from fastapi import APIRouter
 from app.config import settings
+import logging
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 @router.get("/api/debug/ai")
 def debug_ai():
     from app.services.ai.service import ai_service
     
-    # Try importing manually to catch the exact error
     import_error = None
     try:
-        import google.generativeai as genai
+        import google.generativeai  # noqa: F401
     except Exception as e:
         import_error = str(e)
         
     init_error = None
     try:
-        from app.services.ai.gemini_provider import GeminiProvider
+        from app.services.ai.gemini_provider import GeminiProvider  # noqa: F401
     except Exception as e:
         init_error = str(e)
         
@@ -35,17 +35,12 @@ def debug_ai():
 async def test_gemini():
     try:
         from app.services.search_indexer import search_indexer
-        import google.generativeai as genai
         
         if not search_indexer.provider:
             return {"status": "error", "message": "Gemini API provider not initialized. Check GEMINI_API_KEY in .env"}
             
         test_text = "Hello world"
         embedding, chunks = search_indexer.provider.generate_embedding(test_text)
-        
-        # also test inserting it into supabase
-        from app.supabase import get_supabase
-        supabase = get_supabase()
         
         return {
             "status": "success",
@@ -56,5 +51,5 @@ async def test_gemini():
             "chunks_used": chunks
         }
     except Exception as e:
-        import traceback
-        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
+        logger.error(f"Error testing gemini: {e}", exc_info=True)
+        return {"status": "error", "error": str(e)}

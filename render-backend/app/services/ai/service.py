@@ -2,9 +2,8 @@ import logging
 from fastapi import HTTPException
 from typing import Any, Dict, List
 from app.config import settings
-from .interface import AIProvider
 from .placeholder import PlaceholderAIProvider
-from .schemas import AIAnalysisInput, AIAnalysisResult, AIResumeInput, AIResumeResult
+from .schemas import AIAnalysisInput, AIAnalysisResult, AIResumeResult
 
 logger = logging.getLogger(__name__)
 

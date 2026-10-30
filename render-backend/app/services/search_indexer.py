@@ -1,5 +1,4 @@
-import os
-from typing import Dict, Any, List
+from typing import Dict, Any
 from app.config import settings
 from app.supabase import get_supabase
 

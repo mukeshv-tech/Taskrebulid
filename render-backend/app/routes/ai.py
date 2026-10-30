@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from typing import List, Optional
+from typing import Optional
 from app.auth import get_current_user
 from app.supabase import get_supabase
 from app.config import settings

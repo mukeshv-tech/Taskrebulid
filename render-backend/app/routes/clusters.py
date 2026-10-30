@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Dict, Any
 from app.auth import get_current_user
 from app.services.cluster_service import generate_clusters_for_task, get_task_clusters
