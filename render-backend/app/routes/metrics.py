@@ -1,4 +1,3 @@
-import codecs
 import os
 import psutil
 from fastapi import APIRouter, Request
@@ -241,12 +240,15 @@ async def get_metrics(request: Request):
             if os.path.exists('/sys/fs/cgroup/memory.max'):
                 with open('/sys/fs/cgroup/memory.max', 'r') as f:
                     val = f.read().strip()
-                    if val != 'max': total_ram_bytes = int(val)
+                    if val != 'max':
+                        total_ram_bytes = int(val)
             # cgroup v1
             elif os.path.exists('/sys/fs/cgroup/memory/memory.limit_in_bytes'):
                 with open('/sys/fs/cgroup/memory/memory.limit_in_bytes', 'r') as f:
                     total_ram_bytes = int(f.read().strip())
-        except: pass
+        except Exception:
+            # Ignore missing cgroup memory limits on non-Linux systems
+            pass
         
         if total_ram_bytes and total_ram_bytes < psutil.virtual_memory().total:
             total_ram_gb = round(total_ram_bytes / (1024**3), 2)

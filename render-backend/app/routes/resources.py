@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 from app.auth import get_current_user
 from app.services.resource_service import create_resource, list_resources, delete_resource
 from urllib.parse import urlparse

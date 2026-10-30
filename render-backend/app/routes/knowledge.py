@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from app.auth import get_current_user
 from app.supabase import get_supabase
 from app.services.knowledge_service import knowledge_service
