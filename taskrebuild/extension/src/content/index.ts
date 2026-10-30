@@ -17,13 +17,19 @@
 
   // 1. Initialize Root & Shadow DOM
   function initHost() {
-    if (document.getElementById('taskrebuild-floating-root')) return;
+    const existing = document.getElementById('taskrebuild-floating-root') as HTMLDivElement | null;
+    if (existing) {
+      hostElement = existing;
+      return;
+    }
 
     hostElement = document.createElement('div');
     hostElement.id = 'taskrebuild-floating-root';
-    hostElement.style.position = 'absolute';
+    hostElement.style.position = 'fixed';
     hostElement.style.top = '0';
     hostElement.style.left = '0';
+    hostElement.style.width = '0';
+    hostElement.style.height = '0';
     hostElement.style.zIndex = '2147483647';
     hostElement.style.pointerEvents = 'none';
 
@@ -40,7 +46,7 @@
         pointer-events: auto;
       }
       .tr-bubble {
-        position: absolute;
+        position: fixed;
         display: none;
         align-items: center;
         gap: 6px;
@@ -66,7 +72,7 @@
         fill: #38bdf8;
       }
       .tr-card {
-        position: absolute;
+        position: fixed;
         display: none;
         flex-direction: column;
         width: 340px;
@@ -289,7 +295,10 @@
     const saveResourceBtn = captureModal.querySelector('#tr-btn-save-resource');
     saveResourceBtn?.addEventListener('click', handleSaveResource);
 
-    document.body.appendChild(hostElement);
+    const targetRoot = document.body || document.documentElement;
+    if (targetRoot && !document.getElementById('taskrebuild-floating-root')) {
+      targetRoot.appendChild(hostElement);
+    }
   }
 
   function showToast(message: string) {
@@ -394,9 +403,18 @@
     if (titleInput) titleInput.value = suggestedTitle;
     if (contentInput) contentInput.value = currentSelectedText;
 
-    // Position modal at the bubble's coordinates
-    captureModal.style.top = triggerBubble.style.top;
-    captureModal.style.left = triggerBubble.style.left;
+    // Position modal at the bubble's coordinates with screen boundary clamping
+    const bubbleTop = parseFloat(triggerBubble.style.top) || 60;
+    const bubbleLeft = parseFloat(triggerBubble.style.left) || 60;
+
+    const modalWidth = 340;
+    const modalHeight = 320;
+
+    const safeTop = Math.max(16, Math.min(window.innerHeight - modalHeight - 16, bubbleTop));
+    const safeLeft = Math.max(16, Math.min(window.innerWidth - modalWidth - 16, bubbleLeft));
+
+    captureModal.style.top = `${safeTop}px`;
+    captureModal.style.left = `${safeLeft}px`;
     captureModal.style.display = 'flex';
 
     triggerBubble.style.display = 'none';
@@ -500,11 +518,16 @@
       initHost();
 
       if (triggerBubble) {
-        const top = window.scrollY + rect.top - 40;
-        const left = window.scrollX + rect.left + rect.width / 2 - 60;
+        // Use viewport-relative fixed coordinates so position is consistent across any website body styling
+        const viewportTop = rect.top - 44;
+        const viewportLeft = rect.left + (rect.width / 2) - 65;
 
-        triggerBubble.style.top = `${Math.max(10, top)}px`;
-        triggerBubble.style.left = `${Math.max(10, left)}px`;
+        // Ensure within window boundaries
+        const safeTop = Math.max(12, Math.min(window.innerHeight - 50, viewportTop));
+        const safeLeft = Math.max(12, Math.min(window.innerWidth - 180, viewportLeft));
+
+        triggerBubble.style.top = `${safeTop}px`;
+        triggerBubble.style.left = `${safeLeft}px`;
         triggerBubble.style.display = 'flex';
       }
     } catch (e) {
