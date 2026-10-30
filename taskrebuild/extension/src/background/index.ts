@@ -1,4 +1,4 @@
-import { recordTaskActivity, createKnowledge, createTaskResource } from '../lib/api';
+import { recordTaskActivity, createKnowledge, createTaskResource, getTasks } from '../lib/api';
 
 console.log('TaskRebuild background service started');
 
@@ -117,24 +117,43 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
 // Runtime messages from content script (Floating Capture)
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'GET_ACTIVE_CONTEXT') {
-    chrome.storage.local.get(['activeTaskId', 'activeTaskName', 'supabase-session'], (res) => {
+    chrome.storage.local.get(['activeTaskId', 'activeTaskName', 'supabase-session'], async (res) => {
+      let tasksList: any[] = [];
+      if (res['supabase-session']) {
+        try {
+          tasksList = await getTasks();
+        } catch (e) {
+          console.error('Failed to fetch tasks for context', e);
+        }
+      }
       sendResponse({
         activeTaskId: res.activeTaskId || null,
         activeTaskName: res.activeTaskName || null,
-        hasSession: !!res['supabase-session']
+        hasSession: !!res['supabase-session'],
+        tasks: Array.isArray(tasksList) ? tasksList : []
       });
     });
     return true; // Keep message channel open for async response
   }
 
+  if (message.action === 'SET_ACTIVE_TASK') {
+    const { taskId, taskName } = message.payload;
+    chrome.storage.local.set({ activeTaskId: taskId, activeTaskName: taskName }, () => {
+      activeTaskId = taskId;
+      activeTaskName = taskName;
+      sendResponse({ success: true });
+    });
+    return true;
+  }
+
   if (message.action === 'SAVE_KNOWLEDGE_CAPTURE') {
-    const { title, content, type, url, pageTitle, taskId } = message.payload;
+    const { title, content, type, url, pageTitle, taskId, taskName } = message.payload;
     const sources: any[] = [];
     if (taskId) {
       sources.push({
         source_type: 'task',
         source_id: taskId,
-        source_name: activeTaskName || 'Active Task'
+        source_name: taskName || activeTaskName || 'Selected Task'
       });
     }
     if (url) {
@@ -160,7 +179,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'SAVE_RESOURCE_CAPTURE') {
     const { taskId, url, title } = message.payload;
     if (!taskId) {
-      sendResponse({ success: false, error: 'No active task selected' });
+      sendResponse({ success: false, error: 'Please choose a target task first' });
       return true;
     }
 
