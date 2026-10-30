@@ -37,6 +37,7 @@ const App: React.FC = () => {
   const [lockSalt, setLockSalt] = useState<string | null>(null);
   const [lockHash, setLockHash] = useState<string | null>(null);
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
+  const [lockChecked, setLockChecked] = useState<boolean>(false);
   const [showLockSettings, setShowLockSettings] = useState<boolean>(false);
 
   const handleSaveLock = (newSalt: string, newHash: string) => {
@@ -88,14 +89,15 @@ const App: React.FC = () => {
     // 1. First restore session from chrome.storage.local if available
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
       chrome.storage.local.get(['supabase-session', 'activeTaskId', 'activeTaskName', 'app_lock_salt', 'app_lock_hash'], async (result) => {
-        if (result.app_lock_hash && result.app_lock_salt) {
+        const hasLockConfig = !!(result.app_lock_hash && result.app_lock_salt);
+        if (hasLockConfig) {
           setLockSalt(result.app_lock_salt);
           setLockHash(result.app_lock_hash);
-          // Initially locked until verified this session
           setIsUnlocked(false);
         } else {
           setIsUnlocked(true);
         }
+        setLockChecked(true);
         const sessionString = result?.['supabase-session'];
         if (sessionString) {
           try {
@@ -141,10 +143,11 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleSessionSetup = (session: any) => {
+  const handleSessionSetup = (session: any, fromExplicitLogin: boolean = false) => {
     setSession(session);
-    // User just authenticated with their Supabase account, mark unlocked for this session
-    setIsUnlocked(true);
+    if (fromExplicitLogin) {
+      setIsUnlocked(true);
+    }
     if (session) {
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         chrome.storage.local.set({ 'supabase-session': JSON.stringify(session) });
@@ -483,7 +486,12 @@ const App: React.FC = () => {
     }
   };
 
-  if (!session) return <Auth onSession={handleSessionSetup} />;
+  if (!session) return <Auth onSession={(s) => handleSessionSetup(s, true)} />;
+
+  // Wait until local lock config is read from storage
+  if (!lockChecked) {
+    return <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>Loading...</div>;
+  }
 
   // App Lock Passcode Gate
   if (lockHash && lockSalt && !isUnlocked) {
