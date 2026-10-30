@@ -279,6 +279,26 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
     return () => cancelAnimationFrame(animId);
   }, [edges, transform, hoveredNode, selectedNode, colorByCluster]);
 
+  // Non-passive wheel listener for smooth zooming without browser passive warnings
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
+      setTransform((prev) => ({
+        ...prev,
+        scale: Math.max(0.4, Math.min(3.5, prev.scale * zoomFactor))
+      }));
+    };
+
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      canvas.removeEventListener('wheel', onWheel);
+    };
+  }, []);
+
   // Coordinate Conversion helper
   const getSimCoords = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -345,15 +365,6 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
     draggedNodeRef.current = null;
   };
 
-  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
-    setTransform((prev) => ({
-      ...prev,
-      scale: Math.max(0.4, Math.min(3.5, prev.scale * zoomFactor))
-    }));
-  };
-
   return (
     <div style={{ position: 'relative', width: '100%', height: '360px', overflow: 'hidden', borderRadius: '8px' }}>
       <canvas
@@ -364,7 +375,6 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        onWheel={handleWheel}
         style={{
           width: '100%',
           height: '100%',
