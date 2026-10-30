@@ -5,13 +5,21 @@ on:
     branches: [ "**" ]
     tags: [ "**" ]
   pull_request:
-    types: [ opened, synchronize, reopened, closed ]
+    types: [ opened, synchronize, reopened, closed, edited ]
+  pull_request_review_comment:
+    types: [ created ]
   issues:
-    types: [ opened, edited, closed, reopened ]
+    types: [ opened, edited, closed, reopened, labeled, unlabeled ]
   issue_comment:
     types: [ created ]
 
+# Concurrency group ensures events for the same issue/PR execute sequentially to avoid race conditions
+concurrency:
+  group: gitlab-sync-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  # 1. Code Mirroring Job (Branches & PR Refs)
   sync-git:
     name: "Sync Code Branches & PRs"
     if: github.event_name == 'push' || github.event_name == 'pull_request'
@@ -27,117 +35,48 @@ jobs:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
           if [ -z "$GITLAB_TOKEN" ]; then
-            echo "GITLAB_TOKEN secret not configured. Skipping mirror."
-            exit 0
+            echo "::error::GITLAB_TOKEN secret not configured in GitHub repository secrets."
+            exit 1
           fi
 
+          # Configure GitLab Remote
           git remote add gitlab "https://oauth2:${GITLAB_TOKEN}@gitlab.com/mukeshv-tech/taskrebulid.git"
+          
           echo "Syncing all branches and tags to GitLab..."
-          git push --prune gitlab "+refs/remotes/origin/*:refs/heads/*" || true
-          git push --tags gitlab || true
+          git push --prune gitlab "+refs/remotes/origin/*:refs/heads/*"
+          git push --tags gitlab
 
+          # If triggered by a Pull Request, mirror the specific PR branch
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             PR_BRANCH="pr-${{ github.event.pull_request.number }}"
-            echo "Syncing PR #${{ github.event.pull_request.number }} branch ($PR_BRANCH) to GitLab..."
+            echo "Mirroring PR #${{ github.event.pull_request.number }} branch ($PR_BRANCH) to GitLab..."
             git checkout -b "$PR_BRANCH" "${{ github.sha }}"
-            git push --force gitlab "$PR_BRANCH" || true
+            git push --force gitlab "$PR_BRANCH"
           fi
 
+  # 2. Issues, PRs, and Comments API Sync Job
   sync-issues:
-    name: "Sync Issues to GitLab"
-    if: github.event_name == 'issues' || github.event_name == 'issue_comment'
+    name: "Sync Issues, PRs & Comments to GitLab"
+    if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'
+    needs: [sync-git]
+    # Always run sync-issues even if sync-git was skipped (e.g. for pure issue events)
+    if: always() && (github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment')
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Mirror Issue to GitLab API
+      - name: Run GitLab Sync Engine
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
           GITLAB_PROJECT_ID: "88286291"
-          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
           EVENT_NAME: ${{ github.event_name }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
         run: |
-          python - << 'EOF'
-          import json, os, urllib.request, urllib.parse
-
-          token = os.environ.get("GITLAB_TOKEN")
-          project_id = os.environ.get("GITLAB_PROJECT_ID")
-          event_name = os.environ.get("EVENT_NAME")
-          event_path = os.environ.get("GITHUB_EVENT_PATH")
-
-          if not token or not project_id or not event_path:
-              print("Missing required environment variables. Skipping.")
-              exit(0)
-
-          with open(event_path, "r", encoding="utf-8") as f:
-              event_data = json.load(f)
-
-          headers = {"PRIVATE-TOKEN": token}
-
-          def api_request(url, data=None, method="GET"):
-              encoded_data = urllib.parse.urlencode(data).encode("utf-8") if data else None
-              req = urllib.request.Request(url, data=encoded_data, headers=headers, method=method)
-              try:
-                  with urllib.request.urlopen(req) as resp:
-                      return json.loads(resp.read().decode("utf-8"))
-              except urllib.error.HTTPError as e:
-                  err = e.read().decode("utf-8")
-                  print(f"HTTP Error {e.code}: {err}")
-                  return None
-
-          if event_name == "issues":
-              issue = event_data.get("issue", {})
-              issue_num = issue.get("number")
-              issue_title = issue.get("title", "")
-              issue_body = issue.get("body", "") or ""
-              issue_state = issue.get("state", "open")
-
-              ref_tag = f"[GH-{issue_num}]"
-              search_url = f"https://gitlab.com/api/v4/projects/{project_id}/issues?search={urllib.parse.quote(ref_tag)}"
-              existing = api_request(search_url) or []
-
-              matched_iid = None
-              for item in existing:
-                  if ref_tag in item.get("title", ""):
-                      matched_iid = item.get("iid")
-                      break
-
-              full_title = f"{ref_tag} {issue_title}"
-              full_desc = f"> Mirrored from GitHub Issue #{issue_num}\n\n{issue_body}"
-
-              if matched_iid:
-                  print(f"Updating GitLab issue #{matched_iid}...")
-                  update_url = f"https://gitlab.com/api/v4/projects/{project_id}/issues/{matched_iid}"
-                  state_event = "close" if issue_state == "closed" else "reopen"
-                  api_request(update_url, data={"title": full_title, "description": full_desc, "state_event": state_event}, method="PUT")
-              else:
-                  print(f"Creating new GitLab issue for GitHub #{issue_num}...")
-                  create_url = f"https://gitlab.com/api/v4/projects/{project_id}/issues"
-                  api_request(create_url, data={"title": full_title, "description": full_desc}, method="POST")
-
-          elif event_name == "issue_comment":
-              issue = event_data.get("issue", {})
-              comment = event_data.get("comment", {})
-              issue_num = issue.get("number")
-              comment_body = comment.get("body", "")
-              comment_user = comment.get("user", {}).get("login", "unknown")
-
-              ref_tag = f"[GH-{issue_num}]"
-              search_url = f"https://gitlab.com/api/v4/projects/{project_id}/issues?search={urllib.parse.quote(ref_tag)}"
-              existing = api_request(search_url) or []
-
-              matched_iid = None
-              for item in existing:
-                  if ref_tag in item.get("title", ""):
-                      matched_iid = item.get("iid")
-                      break
-
-              if matched_iid:
-                  print(f"Adding comment to GitLab issue #{matched_iid}...")
-                  note_url = f"https://gitlab.com/api/v4/projects/{project_id}/issues/{matched_iid}/notes"
-                  full_comment = f"**@{comment_user} (via GitHub):**\n\n{comment_body}"
-                  api_request(note_url, data={"body": full_comment}, method="POST")
-          EOF
+          python .github/scripts/gitlab_sync.py
