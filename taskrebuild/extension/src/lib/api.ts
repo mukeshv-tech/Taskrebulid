@@ -7,20 +7,17 @@ export const fetchApi = async (endpoint: string, options: RequestInit = {}) => {
   
   let token = '';
   
-  // 1. Try localStorage first (popup environment usually has window)
-  if (typeof window !== 'undefined' && window.localStorage) {
-    const sessionString = window.localStorage.getItem('supabase-session');
-    if (sessionString) {
-      try {
-        const session = JSON.parse(sessionString);
-        token = session?.access_token || '';
-      } catch (e) {
-        console.error('Error parsing session from localStorage', e);
-      }
+  // 1. Try supabase auth client session first
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data?.session?.access_token) {
+      token = data.session.access_token;
     }
+  } catch (e) {
+    console.error('Error getting session from supabase client', e);
   }
 
-  // 2. Fallback to chrome.storage.local if token not found
+  // 2. Fallback to chrome.storage.local
   if (!token && typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
     try {
       const result = await new Promise<any>((resolve) => {
@@ -30,21 +27,29 @@ export const fetchApi = async (endpoint: string, options: RequestInit = {}) => {
       if (sessionString) {
         const session = typeof sessionString === 'string' ? JSON.parse(sessionString) : sessionString;
         token = session?.access_token || '';
+        // If supabase client didn't have it, hydrate supabase client
+        if (session?.refresh_token && session?.access_token) {
+          supabase.auth.setSession({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token
+          }).catch(console.error);
+        }
       }
     } catch (e) {
       console.error('Error parsing session from chrome.storage', e);
     }
   }
 
-  // 3. Fallback directly to supabase auth client session
-  if (!token) {
-    try {
-      const { data } = await supabase.auth.getSession();
-      if (data?.session?.access_token) {
-        token = data.session.access_token;
+  // 3. Fallback to localStorage if still not found
+  if (!token && typeof window !== 'undefined' && window.localStorage) {
+    const sessionString = window.localStorage.getItem('supabase-session');
+    if (sessionString) {
+      try {
+        const session = JSON.parse(sessionString);
+        token = session?.access_token || '';
+      } catch (e) {
+        console.error('Error parsing session from localStorage', e);
       }
-    } catch (e) {
-      console.error('Error getting session from supabase client', e);
     }
   }
 
