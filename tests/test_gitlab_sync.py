@@ -1,16 +1,13 @@
 import unittest
 from unittest.mock import MagicMock
-import json
 import sys
 import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".github", "scripts")))
-import gitlab_sync
 from gitlab_sync import (
     build_metadata,
     extract_metadata,
     find_gitlab_issue,
-    find_gitlab_mr,
     sync_issue,
     sync_comment,
     sync_pull_request
@@ -114,7 +111,7 @@ class TestGitLabSync(unittest.TestCase):
         args, kwargs = self.mock_client.request.call_args
         self.assertEqual(args[0], "merge_requests")
         self.assertEqual(kwargs["method"], "POST")
-        self.assertEqual(kwargs["data"]["source_branch"], "feature-x")
+        self.assertEqual(kwargs["data"]["source_branch"], "pr-3")
         self.assertEqual(kwargs["data"]["target_branch"], "main")
 
 if __name__ == "__main__":

@@ -8,8 +8,7 @@ from app.schemas.knowledge import (
     KnowledgeUpdate,
     KnowledgeStatus,
     RelationshipType,
-    SourceType,
-    KnowledgeSourceInput
+    SourceType
 )
 from app.services.search_indexer import search_indexer
 
