@@ -344,7 +344,8 @@ def test_performance_bulk_list(mock_supabase):
             "title": f"Bulk Concept {i}",
             "content": f"Content for concept {i}"
         })
-    insert_duration = time.time() - t0
+    _insert_duration = time.time() - t0
+    assert _insert_duration > 0
 
     t1 = time.time()
     list_res = client.get("/api/knowledge?limit=50")
