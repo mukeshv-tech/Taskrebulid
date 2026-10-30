@@ -54,6 +54,16 @@ jobs:
             git push --force gitlab "$PR_BRANCH"
           fi
 
+      - name: Mirror Code to Codeberg
+        if: env.CODEBERG_TOKEN != ''
+        env:
+          CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
+        run: |
+          echo "Syncing code branches and tags to Codeberg..."
+          git remote add codeberg "https://${CODEBERG_TOKEN}@codeberg.org/mukeshv-tech/Taskrebulid.git"
+          git push --prune codeberg "+refs/remotes/origin/*:refs/heads/*"
+          git push --tags codeberg
+
   # 2. Issues, PRs, and Comments API Sync Job
   sync-issues:
     name: "Sync Issues, PRs & Comments to GitLab"
