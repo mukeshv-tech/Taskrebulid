@@ -9,6 +9,8 @@ import ResourceMonitor from './components/ResourceMonitor';
 import Auth from './components/Auth';
 import ClustersTab from './components/ClustersTab';
 import KnowledgeTab from './components/KnowledgeTab';
+import { AppLockScreen } from './components/AppLockScreen';
+import { AppLockSettingsModal } from './components/AppLockSettingsModal';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
@@ -31,6 +33,36 @@ const App: React.FC = () => {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeTaskName, setActiveTaskName] = useState<string | null>(null);
 
+  // App Lock Passcode State
+  const [lockSalt, setLockSalt] = useState<string | null>(null);
+  const [lockHash, setLockHash] = useState<string | null>(null);
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
+  const [showLockSettings, setShowLockSettings] = useState<boolean>(false);
+
+  const handleSaveLock = (newSalt: string, newHash: string) => {
+    setLockSalt(newSalt);
+    setLockHash(newHash);
+    setIsUnlocked(true);
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ app_lock_salt: newSalt, app_lock_hash: newHash });
+    }
+  };
+
+  const handleDisableLock = () => {
+    setLockSalt(null);
+    setLockHash(null);
+    setIsUnlocked(true);
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.remove(['app_lock_salt', 'app_lock_hash']);
+    }
+  };
+
+  const handleLockNow = () => {
+    if (lockHash) {
+      setIsUnlocked(false);
+    }
+  };
+
   const selectTask = (task: any) => {
     setSelectedTask(task);
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
@@ -45,7 +77,15 @@ const App: React.FC = () => {
   useEffect(() => {
     // 1. First restore session from chrome.storage.local if available
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.get(['supabase-session', 'activeTaskId', 'activeTaskName'], async (result) => {
+      chrome.storage.local.get(['supabase-session', 'activeTaskId', 'activeTaskName', 'app_lock_salt', 'app_lock_hash'], async (result) => {
+        if (result.app_lock_hash && result.app_lock_salt) {
+          setLockSalt(result.app_lock_salt);
+          setLockHash(result.app_lock_hash);
+          // Initially locked until verified this session
+          setIsUnlocked(false);
+        } else {
+          setIsUnlocked(true);
+        }
         const sessionString = result?.['supabase-session'];
         if (sessionString) {
           try {
@@ -433,6 +473,18 @@ const App: React.FC = () => {
 
   if (!session) return <Auth onSession={handleSessionSetup} />;
 
+  // App Lock Passcode Gate
+  if (lockHash && lockSalt && !isUnlocked) {
+    return (
+      <AppLockScreen
+        salt={lockSalt}
+        expectedHash={lockHash}
+        onUnlock={() => setIsUnlocked(true)}
+        onResetAccount={handleSignOut}
+      />
+    );
+  }
+
   if (selectedTask) {
     const isActive = activeTaskId === selectedTask.id;
     return (
@@ -639,7 +691,47 @@ const App: React.FC = () => {
 
   return (
     <div className="popup-container">
-      <h1>TaskRebuild</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1 style={{ margin: 0 }}>TaskRebuild</h1>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button
+            onClick={() => setShowLockSettings(true)}
+            style={{
+              background: '#f1f5f9',
+              border: '1px solid #cbd5e1',
+              borderRadius: '4px',
+              padding: '4px 8px',
+              fontSize: '11px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              color: '#334155'
+            }}
+            title="App Lock Settings"
+          >
+            <span>{lockHash ? '🔒 Lock Config' : '🔓 Set Password'}</span>
+          </button>
+          {lockHash && (
+            <button
+              onClick={handleLockNow}
+              style={{
+                background: '#e0e7ff',
+                border: '1px solid #c7d2fe',
+                borderRadius: '4px',
+                padding: '4px 8px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                color: '#4338ca',
+                fontWeight: 600
+              }}
+              title="Lock Extension Now"
+            >
+              Lock Now
+            </button>
+          )}
+        </div>
+      </div>
       <p>Signed in as: <br/><strong>{session.user.email}</strong></p>
       
       <div style={{ padding: '10px', background: activeTaskId ? '#ecfdf5' : '#f9fafb', borderRadius: '4px', border: activeTaskId ? '1px solid #10b981' : '1px solid #e5e7eb', marginBottom: '15px' }}>
@@ -689,6 +781,17 @@ const App: React.FC = () => {
       </div>
 
       <button className="sign-out-btn" onClick={handleSignOut}>Sign Out</button>
+
+      {showLockSettings && (
+        <AppLockSettingsModal
+          hasLock={!!lockHash}
+          salt={lockSalt || undefined}
+          expectedHash={lockHash || undefined}
+          onClose={() => setShowLockSettings(false)}
+          onSaveLock={handleSaveLock}
+          onDisableLock={handleDisableLock}
+        />
+      )}
     </div>
   );
 };
