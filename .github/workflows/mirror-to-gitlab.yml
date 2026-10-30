@@ -7,7 +7,7 @@ on:
   pull_request:
     types: [ opened, synchronize, reopened, closed ]
   issues:
-    types: [ opened, edited, closed, reopened, labeled, unlabeled ]
+    types: [ opened, edited, closed, reopened ]
   issue_comment:
     types: [ created ]
 
@@ -48,71 +48,96 @@ jobs:
     if: github.event_name == 'issues' || github.event_name == 'issue_comment'
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Mirror Issue to GitLab API
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
-          GITLAB_PROJECT: "mukeshv-tech%2Ftaskrebulid"
+          GITLAB_PROJECT_ID: "88286291"
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
           EVENT_NAME: ${{ github.event_name }}
-          EVENT_ACTION: ${{ github.event.action }}
         run: |
-          if [ -z "$GITLAB_TOKEN" ]; then
-            echo "GITLAB_TOKEN secret not configured. Skipping issue sync."
-            exit 0
-          fi
+          python - << 'EOF'
+          import json, os, urllib.request, urllib.parse
 
-          # Function to find GitLab issue by title or GitHub Issue Reference
-          if [ "$EVENT_NAME" = "issues" ]; then
-            ISSUE_NUM="${{ github.event.issue.number }}"
-            ISSUE_TITLE="${{ github.event.issue.title }}"
-            ISSUE_BODY="${{ github.event.issue.body }}"
-            ISSUE_STATE="${{ github.event.issue.state }}"
-            
-            SEARCH_QUERY="[GH-${ISSUE_NUM}]"
-            EXISTING=$(curl -s --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
-              "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT/issues?search=$SEARCH_QUERY")
+          token = os.environ.get("GITLAB_TOKEN")
+          project_id = os.environ.get("GITLAB_PROJECT_ID")
+          event_name = os.environ.get("EVENT_NAME")
+          event_path = os.environ.get("GITHUB_EVENT_PATH")
 
-            EXISTING_IID=$(echo "$EXISTING" | grep -o '"iid":[0-9]*' | head -1 | cut -d: -f2)
+          if not token or not project_id or not event_path:
+              print("Missing required environment variables. Skipping.")
+              exit(0)
 
-            if [ -z "$EXISTING_IID" ]; then
-              echo "Creating new issue on GitLab..."
-              FULL_TITLE="[GH-${ISSUE_NUM}] ${ISSUE_TITLE}"
-              FULL_DESC="> Mirrored from GitHub Issue #${ISSUE_NUM}\n\n${ISSUE_BODY}"
-              curl -s -X POST --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
-                --data-urlencode "title=$FULL_TITLE" \
-                --data-urlencode "description=$FULL_DESC" \
-                "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT/issues"
-            else
-              echo "Updating existing issue iid $EXISTING_IID on GitLab..."
-              STATE_EVENT="reopen"
-              if [ "$ISSUE_STATE" = "closed" ]; then
-                STATE_EVENT="close"
-              fi
-              FULL_TITLE="[GH-${ISSUE_NUM}] ${ISSUE_TITLE}"
-              FULL_DESC="> Mirrored from GitHub Issue #${ISSUE_NUM}\n\n${ISSUE_BODY}"
-              curl -s -X PUT --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
-                --data-urlencode "title=$FULL_TITLE" \
-                --data-urlencode "description=$FULL_DESC" \
-                --data-urlencode "state_event=$STATE_EVENT" \
-                "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT/issues/$EXISTING_IID"
-            fi
-          fi
+          with open(event_path, "r", encoding="utf-8") as f:
+              event_data = json.load(f)
 
-          # Handle Issue Comments
-          if [ "$EVENT_NAME" = "issue_comment" ]; then
-            ISSUE_NUM="${{ github.event.issue.number }}"
-            COMMENT_BODY="${{ github.event.comment.body }}"
-            COMMENT_USER="${{ github.event.comment.user.login }}"
-            
-            SEARCH_QUERY="[GH-${ISSUE_NUM}]"
-            EXISTING=$(curl -s --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
-              "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT/issues?search=$SEARCH_QUERY")
-            EXISTING_IID=$(echo "$EXISTING" | grep -o '"iid":[0-9]*' | head -1 | cut -d: -f2)
+          headers = {"PRIVATE-TOKEN": token}
 
-            if [ -n "$EXISTING_IID" ]; then
-              echo "Adding mirrored comment to GitLab issue $EXISTING_IID..."
-              FULL_COMMENT="**@${COMMENT_USER} (via GitHub):**\n\n${COMMENT_BODY}"
-              curl -s -X POST --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
-                --data-urlencode "body=$FULL_COMMENT" \
-                "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT/issues/$EXISTING_IID/notes"
-            fi
-          fi
+          def api_request(url, data=None, method="GET"):
+              encoded_data = urllib.parse.urlencode(data).encode("utf-8") if data else None
+              req = urllib.request.Request(url, data=encoded_data, headers=headers, method=method)
+              try:
+                  with urllib.request.urlopen(req) as resp:
+                      return json.loads(resp.read().decode("utf-8"))
+              except urllib.error.HTTPError as e:
+                  err = e.read().decode("utf-8")
+                  print(f"HTTP Error {e.code}: {err}")
+                  return None
+
+          if event_name == "issues":
+              issue = event_data.get("issue", {})
+              issue_num = issue.get("number")
+              issue_title = issue.get("title", "")
+              issue_body = issue.get("body", "") or ""
+              issue_state = issue.get("state", "open")
+
+              ref_tag = f"[GH-{issue_num}]"
+              search_url = f"https://gitlab.com/api/v4/projects/{project_id}/issues?search={urllib.parse.quote(ref_tag)}"
+              existing = api_request(search_url) or []
+
+              matched_iid = None
+              for item in existing:
+                  if ref_tag in item.get("title", ""):
+                      matched_iid = item.get("iid")
+                      break
+
+              full_title = f"{ref_tag} {issue_title}"
+              full_desc = f"> Mirrored from GitHub Issue #{issue_num}\n\n{issue_body}"
+
+              if matched_iid:
+                  print(f"Updating GitLab issue #{matched_iid}...")
+                  update_url = f"https://gitlab.com/api/v4/projects/{project_id}/issues/{matched_iid}"
+                  state_event = "close" if issue_state == "closed" else "reopen"
+                  api_request(update_url, data={"title": full_title, "description": full_desc, "state_event": state_event}, method="PUT")
+              else:
+                  print(f"Creating new GitLab issue for GitHub #{issue_num}...")
+                  create_url = f"https://gitlab.com/api/v4/projects/{project_id}/issues"
+                  api_request(create_url, data={"title": full_title, "description": full_desc}, method="POST")
+
+          elif event_name == "issue_comment":
+              issue = event_data.get("issue", {})
+              comment = event_data.get("comment", {})
+              issue_num = issue.get("number")
+              comment_body = comment.get("body", "")
+              comment_user = comment.get("user", {}).get("login", "unknown")
+
+              ref_tag = f"[GH-{issue_num}]"
+              search_url = f"https://gitlab.com/api/v4/projects/{project_id}/issues?search={urllib.parse.quote(ref_tag)}"
+              existing = api_request(search_url) or []
+
+              matched_iid = None
+              for item in existing:
+                  if ref_tag in item.get("title", ""):
+                      matched_iid = item.get("iid")
+                      break
+
+              if matched_iid:
+                  print(f"Adding comment to GitLab issue #{matched_iid}...")
+                  note_url = f"https://gitlab.com/api/v4/projects/{project_id}/issues/{matched_iid}/notes"
+                  full_comment = f"**@{comment_user} (via GitHub):**\n\n{comment_body}"
+                  api_request(note_url, data={"body": full_comment}, method="POST")
+          EOF
