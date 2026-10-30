@@ -1,14 +1,12 @@
 import re
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional
+from typing import Dict, Any, Optional
 from fastapi import HTTPException
 from app.supabase import get_supabase
 from app.schemas.knowledge import (
     KnowledgeCreate,
     KnowledgeUpdate,
-    KnowledgeType,
     KnowledgeStatus,
-    KnowledgeOrigin,
     RelationshipType,
     SourceType,
     KnowledgeSourceInput
@@ -323,6 +321,7 @@ class KnowledgeService:
                 metadata={"type": updated_item["type"], "origin": updated_item["origin"]}
             )
         except Exception:
+            # Non-fatal search index sync failure
             pass
 
         return updated_item
@@ -400,6 +399,7 @@ class KnowledgeService:
                 .eq("user_id", user_id)\
                 .execute()
         except Exception:
+            # Non-fatal search index cleanup failure
             pass
 
         return {"status": "success", "deleted_id": knowledge_id}

@@ -1,7 +1,7 @@
 import os
 import psutil
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from app.supabase import get_supabase
 import time
 

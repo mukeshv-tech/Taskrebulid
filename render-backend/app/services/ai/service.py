@@ -3,7 +3,7 @@ from fastapi import HTTPException
 from typing import Any, Dict, List
 from app.config import settings
 from .placeholder import PlaceholderAIProvider
-from .schemas import AIAnalysisInput, AIAnalysisResult, AIResumeResult
+from .schemas import AIAnalysisInput, AIAnalysisResult
 
 logger = logging.getLogger(__name__)
 
