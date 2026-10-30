@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { getTaskGraph, analyzeTaskGraph, getClusters, generateClusters } from '../../lib/api';
 import { ReactFlow, Controls, Background, MarkerType, applyNodeChanges, applyEdgeChanges, NodeChange, EdgeChange } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { GalaxyGraph } from './GalaxyGraph';
 
 interface GraphTabProps {
   taskId: string;
@@ -29,6 +30,7 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
   const [error, setError] = useState('');
   
   const [colorByCluster, setColorByCluster] = useState(false);
+  const [viewMode, setViewMode] = useState<'galaxy' | 'flow'>('galaxy');
 
   const loadGraph = async () => {
     try {
@@ -171,7 +173,39 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
     <div style={{ marginTop: '20px', background: '#121212', borderRadius: '8px', border: '1px solid #333', overflow: 'hidden' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 15px', borderBottom: '1px solid #333', background: '#1e1e1e' }}>
         <h4 style={{ margin: 0, color: '#e5e7eb', fontSize: '13px' }}>🧠 Obsidian Map</h4>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', background: '#262626', borderRadius: '4px', padding: '2px', marginRight: '4px' }}>
+            <button
+              onClick={() => setViewMode('galaxy')}
+              style={{
+                background: viewMode === 'galaxy' ? '#38bdf8' : 'none',
+                color: viewMode === 'galaxy' ? '#0f172a' : '#94a3b8',
+                border: 'none',
+                borderRadius: '3px',
+                padding: '2px 6px',
+                fontSize: '10px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Galaxy
+            </button>
+            <button
+              onClick={() => setViewMode('flow')}
+              style={{
+                background: viewMode === 'flow' ? '#38bdf8' : 'none',
+                color: viewMode === 'flow' ? '#0f172a' : '#94a3b8',
+                border: 'none',
+                borderRadius: '3px',
+                padding: '2px 6px',
+                fontSize: '10px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              2D Flow
+            </button>
+          </div>
           <button 
             onClick={handleClusterGraph} 
             disabled={isClustering || rawNodes.length === 0}
@@ -191,11 +225,32 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
       
       {error && <p style={{ color: '#ef4444', fontSize: '12px', padding: '0 15px' }}>{error}</p>}
       
-      <div style={{ width: '100%', height: '350px', position: 'relative' }}>
+      <div style={{ width: '100%', height: '360px', position: 'relative' }}>
         {rawNodes.length === 0 ? (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#6b7280', fontSize: '12px' }}>
             No graph data. Click Generate Connections.
           </div>
+        ) : viewMode === 'galaxy' ? (
+          <GalaxyGraph
+            nodes={rawNodes.map((n) => ({
+              id: n.id,
+              label: n.label,
+              node_type: n.node_type || 'concept',
+              x: 0,
+              y: 0,
+              vx: 0,
+              vy: 0,
+              radius: 10
+            }))}
+            edges={rawEdges.filter((e) => !e.is_rejected).map((e) => ({
+              id: e.id,
+              source: e.source_node_id,
+              target: e.target_node_id,
+              label: e.relationship_type
+            }))}
+            clusters={clusters}
+            colorByCluster={colorByCluster}
+          />
         ) : (
           <ReactFlow 
             nodes={nodes} 
