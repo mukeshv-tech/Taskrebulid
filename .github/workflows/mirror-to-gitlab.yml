@@ -1,0 +1,43 @@
+name: "Mirror to GitLab"
+
+on:
+  push:
+    branches: [ "**" ]
+    tags: [ "**" ]
+  pull_request:
+    types: [ opened, synchronize, reopened, closed ]
+
+jobs:
+  sync-to-gitlab:
+    name: "Sync Branches, Tags & PRs to GitLab"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Mirror to GitLab
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+        run: |
+          if [ -z "$GITLAB_TOKEN" ]; then
+            echo "GITLAB_TOKEN secret not configured in GitHub repository secrets. Skipping mirror."
+            exit 0
+          fi
+
+          # Configure GitLab Remote
+          git remote add gitlab "https://oauth2:${GITLAB_TOKEN}@gitlab.com/mukeshv-tech/taskrebulid.git"
+
+          echo "Syncing all branches and tags to GitLab..."
+          git push --prune gitlab "+refs/remotes/origin/*:refs/heads/*" || true
+          git push --tags gitlab || true
+
+          # If triggered by a Pull Request, mirror the PR branch explicitly to GitLab
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_BRANCH="pr-${{ github.event.pull_request.number }}"
+            echo "Syncing PR #${{ github.event.pull_request.number }} branch ($PR_BRANCH) to GitLab..."
+            git checkout -b "$PR_BRANCH" "${{ github.sha }}"
+            git push --force gitlab "$PR_BRANCH" || true
+          fi
