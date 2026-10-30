@@ -57,6 +57,16 @@ const App: React.FC = () => {
     }
   };
 
+  const handleResetLockAndSignOut = async () => {
+    setLockSalt(null);
+    setLockHash(null);
+    setIsUnlocked(true);
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.remove(['app_lock_salt', 'app_lock_hash']);
+    }
+    await handleSignOut();
+  };
+
   const handleLockNow = () => {
     if (lockHash) {
       setIsUnlocked(false);
@@ -133,6 +143,8 @@ const App: React.FC = () => {
 
   const handleSessionSetup = (session: any) => {
     setSession(session);
+    // User just authenticated with their Supabase account, mark unlocked for this session
+    setIsUnlocked(true);
     if (session) {
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         chrome.storage.local.set({ 'supabase-session': JSON.stringify(session) });
@@ -480,7 +492,7 @@ const App: React.FC = () => {
         salt={lockSalt}
         expectedHash={lockHash}
         onUnlock={() => setIsUnlocked(true)}
-        onResetAccount={handleSignOut}
+        onResetAccount={handleResetLockAndSignOut}
       />
     );
   }
