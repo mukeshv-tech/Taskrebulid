@@ -96,5 +96,5 @@ def delete_analysis(task_id: str, analysis_id: str, user = Depends(get_current_u
     if not task_res.data:
         raise HTTPException(status_code=403, detail="Task not found or not owned by user")
         
-    result = supabase.table("task_ai_analyses").delete().eq("id", analysis_id).eq("task_id", task_id).eq("user_id", user.id).execute()
+    supabase.table("task_ai_analyses").delete().eq("id", analysis_id).eq("task_id", task_id).eq("user_id", user.id).execute()
     return {"status": "success"}

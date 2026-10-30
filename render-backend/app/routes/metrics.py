@@ -217,7 +217,6 @@ async def get_metrics(request: Request):
     accept_header = request.headers.get("accept", "")
     
     if "text/html" in accept_header:
-        from fastapi.responses import HTMLResponse
         return HTMLResponse(content=DASHBOARD_HTML)
         
     try:
@@ -288,4 +287,4 @@ async def get_metrics(request: Request):
         })
     except Exception as e:
         from fastapi.responses import JSONResponse
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Failed to retrieve telemetry metrics"}, status_code=500)
