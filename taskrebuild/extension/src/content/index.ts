@@ -197,8 +197,12 @@
       <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
       <span>Capture Knowledge</span>
     `;
-    // Prevent mousedown from clearing the text selection
+    // Prevent mousedown from clearing the text selection or closing modal
     triggerBubble.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    triggerBubble.addEventListener('mouseup', (e) => {
       e.preventDefault();
       e.stopPropagation();
     });
@@ -212,6 +216,15 @@
     // Capture Modal Card with Task Chooser
     captureModal = document.createElement('div');
     captureModal.className = 'tr-card tr-pointer';
+    captureModal.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+    });
+    captureModal.addEventListener('mouseup', (e) => {
+      e.stopPropagation();
+    });
+    captureModal.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
     captureModal.innerHTML = `
       <div class="tr-header">
         <div class="tr-header-title">
@@ -330,30 +343,49 @@
     });
   }
 
+  // Helper to safely check if extension context is valid
+  function isExtensionValid(): boolean {
+    return typeof chrome !== 'undefined' && !!chrome.runtime && !!chrome.runtime.id;
+  }
+
   function openModal() {
     if (!captureModal || !triggerBubble) return;
+
+    if (!isExtensionValid()) {
+      showToast('⚠️ Extension reloaded. Please refresh this webpage.');
+      return;
+    }
 
     const taskSelect = captureModal.querySelector('#tr-task-select') as HTMLSelectElement;
     const titleInput = captureModal.querySelector('#tr-title-input') as HTMLInputElement;
     const contentInput = captureModal.querySelector('#tr-content-input') as HTMLTextAreaElement;
 
     // Load available tasks and current active task context from Supabase via background service
-    chrome.runtime.sendMessage({ action: 'GET_ACTIVE_CONTEXT' }, (res) => {
-      if (res) {
-        availableTasks = res.tasks || [];
-        const hasSession = !!res.hasSession;
-        if (res.activeTaskId) {
-          selectedTaskId = res.activeTaskId;
-          selectedTaskName = res.activeTaskName;
-        } else if (availableTasks.length > 0 && !selectedTaskId) {
-          selectedTaskId = availableTasks[0].id;
-          selectedTaskName = availableTasks[0].name;
+    try {
+      chrome.runtime.sendMessage({ action: 'GET_ACTIVE_CONTEXT' }, (res) => {
+        if (chrome.runtime.lastError) {
+          console.warn('TaskRebuild GET_ACTIVE_CONTEXT error:', chrome.runtime.lastError.message);
+          return;
         }
-        if (taskSelect) {
-          populateTaskOptions(taskSelect, hasSession);
+        if (res) {
+          availableTasks = res.tasks || [];
+          const hasSession = !!res.hasSession;
+          if (res.activeTaskId) {
+            selectedTaskId = res.activeTaskId;
+            selectedTaskName = res.activeTaskName;
+          } else if (availableTasks.length > 0 && !selectedTaskId) {
+            selectedTaskId = availableTasks[0].id;
+            selectedTaskName = availableTasks[0].name;
+          }
+          if (taskSelect) {
+            populateTaskOptions(taskSelect, hasSession);
+          }
         }
-      }
-    });
+      });
+    } catch (e) {
+      console.warn('Failed to sendMessage to background service:', e);
+      showToast('⚠️ Extension updated. Please refresh page.');
+    }
 
     // Auto-suggest concise title
     const firstLine = currentSelectedText.split('\n')[0].trim();
@@ -386,14 +418,27 @@
       taskName: selectedTaskName
     };
 
-    chrome.runtime.sendMessage({ action: 'SAVE_KNOWLEDGE_CAPTURE', payload }, (response) => {
-      if (response && response.success) {
-        hideAll();
-        showToast('✓ Saved to Knowledge!');
-      } else {
-        alert(response?.error || 'Failed to save knowledge. Please ensure you are logged in.');
-      }
-    });
+    if (!isExtensionValid()) {
+      alert('Extension context invalidated after reload. Please refresh the page to reconnect.');
+      return;
+    }
+
+    try {
+      chrome.runtime.sendMessage({ action: 'SAVE_KNOWLEDGE_CAPTURE', payload }, (response) => {
+        if (chrome.runtime.lastError) {
+          alert('Error: ' + chrome.runtime.lastError.message);
+          return;
+        }
+        if (response && response.success) {
+          hideAll();
+          showToast('✓ Saved to Knowledge!');
+        } else {
+          alert(response?.error || 'Failed to save knowledge. Please ensure you are logged in.');
+        }
+      });
+    } catch (err: any) {
+      alert('Failed to send to extension: ' + (err?.message || err));
+    }
   }
 
   function handleSaveResource() {
@@ -408,14 +453,27 @@
       title: document.title
     };
 
-    chrome.runtime.sendMessage({ action: 'SAVE_RESOURCE_CAPTURE', payload }, (response) => {
-      if (response && response.success) {
-        hideAll();
-        showToast('✓ Saved as Resource!');
-      } else {
-        alert(response?.error || 'Failed to save resource.');
-      }
-    });
+    if (!isExtensionValid()) {
+      alert('Extension context invalidated after reload. Please refresh the page to reconnect.');
+      return;
+    }
+
+    try {
+      chrome.runtime.sendMessage({ action: 'SAVE_RESOURCE_CAPTURE', payload }, (response) => {
+        if (chrome.runtime.lastError) {
+          alert('Error: ' + chrome.runtime.lastError.message);
+          return;
+        }
+        if (response && response.success) {
+          hideAll();
+          showToast('✓ Saved as Resource!');
+        } else {
+          alert(response?.error || 'Failed to save resource.');
+        }
+      });
+    } catch (err: any) {
+      alert('Failed to send to extension: ' + (err?.message || err));
+    }
   }
 
   // 2. Selection Event Handling
@@ -456,19 +514,25 @@
 
   // Mouse & Keyboard Event Listeners
   document.addEventListener('mouseup', (e) => {
-    // If the mouseup is on the hostElement or floating bubble/modal, don't re-trigger selection logic
-    if (hostElement && e.composedPath().includes(hostElement)) return;
+    // If the modal is currently open, don't let mouseup collapse or recalculate
+    if (captureModal && captureModal.style.display === 'flex') return;
+    // If the mouseup is on the hostElement or inside shadow DOM, don't re-trigger selection logic
+    const path = e.composedPath ? e.composedPath() : [];
+    if (hostElement && (path.includes(hostElement) || hostElement.contains(e.target as Node))) return;
     setTimeout(onSelectionChange, 20);
   });
 
   document.addEventListener('keyup', (e) => {
-    if (hostElement && e.composedPath().includes(hostElement)) return;
+    if (captureModal && captureModal.style.display === 'flex') return;
+    const path = e.composedPath ? e.composedPath() : [];
+    if (hostElement && (path.includes(hostElement) || hostElement.contains(e.target as Node))) return;
     setTimeout(onSelectionChange, 20);
   });
 
   document.addEventListener('mousedown', (e) => {
     // Don't close if clicking inside the floating host element (bubble or modal)
-    if (hostElement && e.composedPath().includes(hostElement)) return;
+    const path = e.composedPath ? e.composedPath() : [];
+    if (hostElement && (path.includes(hostElement) || hostElement.contains(e.target as Node))) return;
     hideAll();
   });
 })();
