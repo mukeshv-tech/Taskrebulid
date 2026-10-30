@@ -1,4 +1,5 @@
 import { recordTaskActivity, createKnowledge, createTaskResource, getTasks } from '../lib/api';
+import { supabase } from '../lib/supabase';
 
 console.log('TaskRebuild background service started');
 
@@ -119,17 +120,44 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'GET_ACTIVE_CONTEXT') {
     chrome.storage.local.get(['activeTaskId', 'activeTaskName', 'supabase-session'], async (res) => {
       let tasksList: any[] = [];
-      if (res['supabase-session']) {
+      const rawSession = res['supabase-session'];
+      let sessionObj = rawSession;
+      if (typeof rawSession === 'string') {
+        try {
+          sessionObj = JSON.parse(rawSession);
+        } catch (e) {
+          console.error('Failed to parse supabase-session', e);
+        }
+      }
+
+      if (sessionObj) {
+        // Try backend API first
         try {
           tasksList = await getTasks();
         } catch (e) {
-          console.error('Failed to fetch tasks for context', e);
+          console.warn('API getTasks failed, attempting direct Supabase query fallback', e);
+          // Fallback: Query Supabase directly with user session if available
+          try {
+            if (sessionObj?.user?.id) {
+              const { data, error } = await supabase
+                .from('tasks')
+                .select('*')
+                .eq('user_id', sessionObj.user.id)
+                .order('created_at', { ascending: false });
+              if (!error && Array.isArray(data)) {
+                tasksList = data;
+              }
+            }
+          } catch (supErr) {
+            console.error('Direct Supabase task query failed', supErr);
+          }
         }
       }
+
       sendResponse({
         activeTaskId: res.activeTaskId || null,
         activeTaskName: res.activeTaskName || null,
-        hasSession: !!res['supabase-session'],
+        hasSession: !!sessionObj,
         tasks: Array.isArray(tasksList) ? tasksList : []
       });
     });
