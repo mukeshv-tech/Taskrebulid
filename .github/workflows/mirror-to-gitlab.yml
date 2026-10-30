@@ -1,4 +1,4 @@
-name: "Mirror to GitLab"
+name: "Mirror to GitLab (Code & Issues)"
 
 on:
   push:
@@ -6,12 +6,16 @@ on:
     tags: [ "**" ]
   pull_request:
     types: [ opened, synchronize, reopened, closed ]
+  issues:
+    types: [ opened, edited, closed, reopened, labeled, unlabeled ]
+  issue_comment:
+    types: [ created ]
 
 jobs:
-  sync-to-gitlab:
-    name: "Sync Branches, Tags & PRs to GitLab"
+  sync-git:
+    name: "Sync Code Branches & PRs"
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,21 +27,92 @@ jobs:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
           if [ -z "$GITLAB_TOKEN" ]; then
-            echo "GITLAB_TOKEN secret not configured in GitHub repository secrets. Skipping mirror."
+            echo "GITLAB_TOKEN secret not configured. Skipping mirror."
             exit 0
           fi
 
-          # Configure GitLab Remote
           git remote add gitlab "https://oauth2:${GITLAB_TOKEN}@gitlab.com/mukeshv-tech/taskrebulid.git"
-
           echo "Syncing all branches and tags to GitLab..."
           git push --prune gitlab "+refs/remotes/origin/*:refs/heads/*" || true
           git push --tags gitlab || true
 
-          # If triggered by a Pull Request, mirror the PR branch explicitly to GitLab
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             PR_BRANCH="pr-${{ github.event.pull_request.number }}"
             echo "Syncing PR #${{ github.event.pull_request.number }} branch ($PR_BRANCH) to GitLab..."
             git checkout -b "$PR_BRANCH" "${{ github.sha }}"
             git push --force gitlab "$PR_BRANCH" || true
+          fi
+
+  sync-issues:
+    name: "Sync Issues to GitLab"
+    if: github.event_name == 'issues' || github.event_name == 'issue_comment'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mirror Issue to GitLab API
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          GITLAB_PROJECT: "mukeshv-tech%2Ftaskrebulid"
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action }}
+        run: |
+          if [ -z "$GITLAB_TOKEN" ]; then
+            echo "GITLAB_TOKEN secret not configured. Skipping issue sync."
+            exit 0
+          fi
+
+          # Function to find GitLab issue by title or GitHub Issue Reference
+          if [ "$EVENT_NAME" = "issues" ]; then
+            ISSUE_NUM="${{ github.event.issue.number }}"
+            ISSUE_TITLE="${{ github.event.issue.title }}"
+            ISSUE_BODY="${{ github.event.issue.body }}"
+            ISSUE_STATE="${{ github.event.issue.state }}"
+            
+            SEARCH_QUERY="[GH-${ISSUE_NUM}]"
+            EXISTING=$(curl -s --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+              "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT/issues?search=$SEARCH_QUERY")
+
+            EXISTING_IID=$(echo "$EXISTING" | grep -o '"iid":[0-9]*' | head -1 | cut -d: -f2)
+
+            if [ -z "$EXISTING_IID" ]; then
+              echo "Creating new issue on GitLab..."
+              FULL_TITLE="[GH-${ISSUE_NUM}] ${ISSUE_TITLE}"
+              FULL_DESC="> Mirrored from GitHub Issue #${ISSUE_NUM}\n\n${ISSUE_BODY}"
+              curl -s -X POST --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+                --data-urlencode "title=$FULL_TITLE" \
+                --data-urlencode "description=$FULL_DESC" \
+                "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT/issues"
+            else
+              echo "Updating existing issue iid $EXISTING_IID on GitLab..."
+              STATE_EVENT="reopen"
+              if [ "$ISSUE_STATE" = "closed" ]; then
+                STATE_EVENT="close"
+              fi
+              FULL_TITLE="[GH-${ISSUE_NUM}] ${ISSUE_TITLE}"
+              FULL_DESC="> Mirrored from GitHub Issue #${ISSUE_NUM}\n\n${ISSUE_BODY}"
+              curl -s -X PUT --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+                --data-urlencode "title=$FULL_TITLE" \
+                --data-urlencode "description=$FULL_DESC" \
+                --data-urlencode "state_event=$STATE_EVENT" \
+                "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT/issues/$EXISTING_IID"
+            fi
+          fi
+
+          # Handle Issue Comments
+          if [ "$EVENT_NAME" = "issue_comment" ]; then
+            ISSUE_NUM="${{ github.event.issue.number }}"
+            COMMENT_BODY="${{ github.event.comment.body }}"
+            COMMENT_USER="${{ github.event.comment.user.login }}"
+            
+            SEARCH_QUERY="[GH-${ISSUE_NUM}]"
+            EXISTING=$(curl -s --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+              "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT/issues?search=$SEARCH_QUERY")
+            EXISTING_IID=$(echo "$EXISTING" | grep -o '"iid":[0-9]*' | head -1 | cut -d: -f2)
+
+            if [ -n "$EXISTING_IID" ]; then
+              echo "Adding mirrored comment to GitLab issue $EXISTING_IID..."
+              FULL_COMMENT="**@${COMMENT_USER} (via GitHub):**\n\n${COMMENT_BODY}"
+              curl -s -X POST --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+                --data-urlencode "body=$FULL_COMMENT" \
+                "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT/issues/$EXISTING_IID/notes"
+            fi
           fi
