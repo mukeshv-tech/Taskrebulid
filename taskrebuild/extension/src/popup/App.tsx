@@ -110,6 +110,59 @@ const App: React.FC = () => {
     }
   };
 
+  // Realtime subscription for tasks (scoped to current authenticated user)
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const userId = session.user.id;
+
+    const channel = supabase
+      .channel(`realtime-user-tasks-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload: any) => {
+          if (payload.eventType === 'INSERT') {
+            setTasks((prev) => {
+              if (prev.some((t) => t.id === payload.new.id)) return prev;
+              const updated = [payload.new, ...prev];
+              if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.set({ cachedTasks: updated });
+              }
+              return updated;
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            setTasks((prev) => {
+              const updated = prev.map((t) => (t.id === payload.new.id ? { ...t, ...payload.new } : t));
+              if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.set({ cachedTasks: updated });
+              }
+              return updated;
+            });
+            setSelectedTask((prev: any) => (prev && prev.id === payload.new.id ? { ...prev, ...payload.new } : prev));
+          } else if (payload.eventType === 'DELETE') {
+            setTasks((prev) => {
+              const updated = prev.filter((t) => t.id !== payload.old.id);
+              if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.set({ cachedTasks: updated });
+              }
+              return updated;
+            });
+            setSelectedTask((prev: any) => (prev && prev.id === payload.old.id ? null : prev));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session?.user?.id]);
+
   useEffect(() => {
     if (selectedTask) {
       Promise.all([
@@ -122,6 +175,51 @@ const App: React.FC = () => {
       setNewTitle('');
     }
   }, [selectedTask]);
+
+  // Realtime subscription for selected task resources and activity
+  useEffect(() => {
+    if (!selectedTask?.id || !session?.user?.id) return;
+    const taskId = selectedTask.id;
+
+    const channel = supabase
+      .channel(`realtime-task-details-${taskId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'task_resources',
+          filter: `task_id=eq.${taskId}`
+        },
+        (payload: any) => {
+          if (payload.eventType === 'INSERT') {
+            setResources((prev) => [payload.new, ...prev.filter((r) => r.id !== payload.new.id)]);
+          } else if (payload.eventType === 'UPDATE') {
+            setResources((prev) => prev.map((r) => (r.id === payload.new.id ? payload.new : r)));
+          } else if (payload.eventType === 'DELETE') {
+            setResources((prev) => prev.filter((r) => r.id !== payload.old.id));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'task_activity',
+          filter: `task_id=eq.${taskId}`
+        },
+        (payload: any) => {
+          setActivities((prev) => [payload.new, ...prev.filter((a) => a.id !== payload.new.id)]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedTask?.id, session?.user?.id]);
+
 
   const loadAiAnalyses = async (taskId: string) => {
     try {
