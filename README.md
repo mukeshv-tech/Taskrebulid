@@ -92,7 +92,34 @@ npm run build
 
 ---
 
-## 🗺️ Roadmap & Future Upgrades
-- [ ] **Autonomous Web Scraper:** A background worker that downloads, strips, and embeds the full HTML body of saved URLs for deep-quote searching.
-- [ ] **Obsidian-Style Graph UI:** A 3D force-directed React graph to visually explore your Task nodes.
-- [ ] **GraphRAG Chatbot:** A conversational UI that traverses the Knowledge Graph to answer complex questions about your saved resources.
+## Repository Synchronization Architecture
+
+This project uses GitHub as its primary development platform, with automated synchronization to GitLab and Codeberg.
+
+### GitHub — Primary Repository
+GitHub is the authoritative source for development and project management, including:
+- Source code and Git history
+- Branches and tags
+- Issues and pull requests
+- Comments, discussions and project activity
+
+### GitLab — Full Project Mirror
+GitLab receives synchronized repository code and supported project-management data through automated Git operations and API integration.
+
+Its purpose is to provide an additional development and project-management platform.
+
+### Codeberg — Code-Only Mirror
+Codeberg serves exclusively as an independent Git repository mirror.
+
+It receives:
+- Source code
+- Commit history
+- Branches
+- Tags
+
+Issues, pull requests, comments, discussions and other project-management metadata are intentionally not synchronized to Codeberg.
+
+### Synchronization Policy
+GitHub remains the authoritative source. GitLab and Codeberg are downstream mirrors with different synchronization scopes.
+
+Codeberg's limited synchronization is intentional and is not considered an incomplete or failed synchronization.
