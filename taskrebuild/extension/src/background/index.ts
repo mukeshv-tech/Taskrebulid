@@ -118,8 +118,8 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
 // Runtime messages from content script (Floating Capture)
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'GET_ACTIVE_CONTEXT') {
-    chrome.storage.local.get(['activeTaskId', 'activeTaskName', 'supabase-session'], async (res) => {
-      let tasksList: any[] = [];
+    chrome.storage.local.get(['activeTaskId', 'activeTaskName', 'selectedTaskId', 'supabase-session', 'cachedTasks'], async (res) => {
+      let tasksList: any[] = Array.isArray(res.cachedTasks) ? res.cachedTasks : [];
       const rawSession = res['supabase-session'];
       let sessionObj = rawSession;
       if (typeof rawSession === 'string') {
@@ -130,13 +130,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         }
       }
 
+      // If we don't have cached tasks or want fresh list, fetch in parallel
       if (sessionObj) {
-        // Try backend API first
         try {
-          tasksList = await getTasks();
+          const fresh = await getTasks();
+          if (Array.isArray(fresh) && fresh.length > 0) {
+            tasksList = fresh;
+            chrome.storage.local.set({ cachedTasks: fresh });
+          }
         } catch (e) {
           console.warn('API getTasks failed, attempting direct Supabase query fallback', e);
-          // Fallback: Query Supabase directly with user session if available
           try {
             if (sessionObj?.user?.id) {
               const { data, error } = await supabase
@@ -144,8 +147,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                 .select('*')
                 .eq('user_id', sessionObj.user.id)
                 .order('created_at', { ascending: false });
-              if (!error && Array.isArray(data)) {
+              if (!error && Array.isArray(data) && data.length > 0) {
                 tasksList = data;
+                chrome.storage.local.set({ cachedTasks: data });
               }
             }
           } catch (supErr) {
@@ -155,7 +159,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       }
 
       sendResponse({
-        activeTaskId: res.activeTaskId || null,
+        activeTaskId: res.activeTaskId || res.selectedTaskId || null,
         activeTaskName: res.activeTaskName || null,
         hasSession: !!sessionObj,
         tasks: Array.isArray(tasksList) ? tasksList : []
