@@ -4,6 +4,7 @@ on:
   push:
     branches: [ "**" ]
     tags: [ "**" ]
+  delete:
   pull_request:
     types: [ opened, synchronize, reopened, closed, edited ]
   pull_request_review_comment:
@@ -19,10 +20,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # 1. Code Mirroring Job (Branches & PR Refs)
+  # 1. Code Mirroring Job (Branches, PR Refs & Branch Deletions)
   sync-git:
     name: "Sync Code Branches & PRs"
-    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'delete'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -42,9 +43,16 @@ jobs:
           # Configure GitLab Remote
           git remote add gitlab "https://oauth2:${GITLAB_TOKEN}@gitlab.com/mukeshv-tech/taskrebulid.git"
           
-          echo "Syncing branches and tags to GitLab..."
+          echo "Syncing branches and tags to GitLab with prune..."
           git push --prune --force gitlab "+refs/remotes/origin/*:refs/heads/*"
           git push --tags gitlab
+
+          # Handle explicit branch deletion event
+          if [ "${{ github.event_name }}" = "delete" ] && [ "${{ github.event.ref_type }}" = "branch" ]; then
+            DEL_BRANCH="${{ github.event.ref }}"
+            echo "Branch '$DEL_BRANCH' was deleted on GitHub. Deleting on GitLab..."
+            git push gitlab --delete "$DEL_BRANCH" || true
+          fi
 
           # If triggered by a Pull Request, mirror the specific PR branch
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -59,12 +67,19 @@ jobs:
         env:
           CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
         run: |
-          echo "Syncing code branches and tags to Codeberg..."
+          echo "Syncing code branches and tags to Codeberg with prune..."
           git remote add codeberg "https://${CODEBERG_TOKEN}@codeberg.org/mukeshv-tech/taskrebulid.git"
           
           # Push remote-tracking branches and tags, pruning stale deleted branches from Codeberg
           git push --prune --force codeberg "+refs/remotes/origin/*:refs/heads/*"
           git push --tags codeberg
+
+          # Handle explicit branch deletion event
+          if [ "${{ github.event_name }}" = "delete" ] && [ "${{ github.event.ref_type }}" = "branch" ]; then
+            DEL_BRANCH="${{ github.event.ref }}"
+            echo "Branch '$DEL_BRANCH' was deleted on GitHub. Deleting on Codeberg..."
+            git push codeberg --delete "$DEL_BRANCH" || true
+          fi
 
           # If triggered by a Pull Request, mirror the specific PR branch to Codeberg
           if [ "${{ github.event_name }}" = "pull_request" ]; then
