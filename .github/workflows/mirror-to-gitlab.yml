@@ -67,7 +67,9 @@ jobs:
   # 2. Issues, PRs, and Comments API Sync Job
   sync-issues:
     name: "Sync Issues, PRs & Comments to GitLab"
-    if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment'
+    # Ensure code branches and PR branches are mirrored to GitLab first before creating Merge Requests
+    needs: [sync-git]
+    if: always() && (needs.sync-git.result == 'success' || needs.sync-git.result == 'skipped') && (github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

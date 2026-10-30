@@ -276,8 +276,23 @@ def sync_pull_request(client: GitLabClient, repo_id: str, event_data: dict):
 
     meta_header = build_metadata(repo_id, "pull_request", str(pr_number), {"html_url": html_url})
     
-    # We use dedicated branch pr-<number> on GitLab if it's from a fork or head branch directly
-    gitlab_source_branch = head_branch if not pr.get("head", {}).get("repo", {}).get("fork") else f"pr-{pr_number}"
+    # Priority for source branch on GitLab:
+    # 1. Dedicated mirrored PR branch: pr-<pr_number>
+    # 2. Or the head_branch name if it exists
+    pr_dedicated_branch = f"pr-{pr_number}"
+    
+    # Check if dedicated pr-<number> branch exists in GitLab repo
+    gitlab_source_branch = pr_dedicated_branch
+    try:
+        branches = client.paginate("repository/branches", {"search": pr_dedicated_branch})
+        has_pr_branch = any(b.get("name") == pr_dedicated_branch for b in branches)
+        if not has_pr_branch:
+            # Check if head_branch exists
+            head_branches = client.paginate("repository/branches", {"search": head_branch})
+            if any(b.get("name") == head_branch for b in head_branches):
+                gitlab_source_branch = head_branch
+    except Exception as e:
+        logger.warning(f"Could not query GitLab branches, defaulting source_branch to {gitlab_source_branch}: {e}")
 
     full_title = f"[GH-PR-{pr_number}] {pr_title}"
     full_desc = (
