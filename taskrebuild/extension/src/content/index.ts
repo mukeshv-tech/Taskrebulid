@@ -288,8 +288,16 @@
     if (captureModal) captureModal.style.display = 'none';
   }
 
-  function populateTaskOptions(taskSelect: HTMLSelectElement) {
+  function populateTaskOptions(taskSelect: HTMLSelectElement, hasSession: boolean) {
     taskSelect.innerHTML = '';
+
+    if (!hasSession) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = '(Sign in via TaskRebuild popup)';
+      taskSelect.appendChild(opt);
+      return;
+    }
 
     if (!availableTasks || availableTasks.length === 0) {
       const opt = document.createElement('option');
@@ -302,7 +310,7 @@
     // Optional General / Standalone choice
     const genOpt = document.createElement('option');
     genOpt.value = '';
-    genOpt.textContent = '-- General / None --';
+    genOpt.textContent = '-- General / Standalone --';
     taskSelect.appendChild(genOpt);
 
     availableTasks.forEach((task) => {
@@ -323,14 +331,20 @@
     const titleInput = captureModal.querySelector('#tr-title-input') as HTMLInputElement;
     const contentInput = captureModal.querySelector('#tr-content-input') as HTMLTextAreaElement;
 
-    // Load available tasks and current active task context
+    // Load available tasks and current active task context from Supabase via background service
     chrome.runtime.sendMessage({ action: 'GET_ACTIVE_CONTEXT' }, (res) => {
       if (res) {
         availableTasks = res.tasks || [];
-        selectedTaskId = res.activeTaskId || (availableTasks[0] ? availableTasks[0].id : null);
-        selectedTaskName = res.activeTaskName || (availableTasks[0] ? availableTasks[0].name : null);
+        const hasSession = !!res.hasSession;
+        if (res.activeTaskId) {
+          selectedTaskId = res.activeTaskId;
+          selectedTaskName = res.activeTaskName;
+        } else if (availableTasks.length > 0 && !selectedTaskId) {
+          selectedTaskId = availableTasks[0].id;
+          selectedTaskName = availableTasks[0].name;
+        }
         if (taskSelect) {
-          populateTaskOptions(taskSelect);
+          populateTaskOptions(taskSelect, hasSession);
         }
       }
     });
