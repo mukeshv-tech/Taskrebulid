@@ -122,6 +122,7 @@ const App: React.FC = () => {
       setTasks(data);
 
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({ cachedTasks: data });
         chrome.storage.local.get(['selectedTaskId'], (result) => {
           if (result && result.selectedTaskId && data && data.length > 0) {
             const found = data.find((t: any) => t.id === result.selectedTaskId);
