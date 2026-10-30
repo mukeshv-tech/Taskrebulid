@@ -60,7 +60,7 @@ jobs:
           CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
         run: |
           echo "Syncing code branches and tags to Codeberg..."
-          git remote add codeberg "https://${CODEBERG_TOKEN}@codeberg.org/mukeshv-tech/Taskrebulid.git"
+          git remote add codeberg "https://${CODEBERG_TOKEN}@codeberg.org/mukeshv-tech/taskrebulid.git"
           git push --prune codeberg "+refs/remotes/origin/*:refs/heads/*"
           git push --tags codeberg
 
