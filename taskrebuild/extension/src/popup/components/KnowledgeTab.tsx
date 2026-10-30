@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
 import {
   listKnowledge,
   getKnowledgeDetail,
@@ -77,6 +78,57 @@ export const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ taskId, taskName }) 
   useEffect(() => {
     fetchItems();
   }, [filterType, filterStatus, scopeToTask, taskId]);
+
+  // Realtime subscription for knowledge items (scoped to current user and active task scope)
+  useEffect(() => {
+    let channel: any = null;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user?.id) return;
+      const userId = session.user.id;
+
+      channel = supabase
+        .channel(`realtime-knowledge-${userId}-${taskId || 'all'}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'knowledge_items',
+            filter: `user_id=eq.${userId}`
+          },
+          (payload: any) => {
+            if (payload.eventType === 'INSERT') {
+              // If scoped to a specific task, reload to ensure relationship filtering
+              if (scopeToTask && taskId) {
+                fetchItems();
+              } else {
+                setItems((prev) => {
+                  if (prev.some((k) => k.id === payload.new.id)) return prev;
+                  return [payload.new, ...prev];
+                });
+              }
+            } else if (payload.eventType === 'UPDATE') {
+              setItems((prev) =>
+                prev.map((k) => (k.id === payload.new.id ? { ...k, ...payload.new } : k))
+              );
+              setDetail((prev: any) => (prev && prev.id === payload.new.id ? { ...prev, ...payload.new } : prev));
+            } else if (payload.eventType === 'DELETE') {
+              setItems((prev) => prev.filter((k) => k.id !== payload.old.id));
+              setDetail((prev: any) => (prev && prev.id === payload.old.id ? null : prev));
+              setSelectedId((prev: any) => (prev === payload.old.id ? null : prev));
+            }
+          }
+        )
+        .subscribe();
+    });
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [taskId, scopeToTask]);
 
   const loadDetail = async (id: string) => {
     try {
