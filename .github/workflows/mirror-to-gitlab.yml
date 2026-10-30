@@ -43,7 +43,7 @@ jobs:
           git remote add gitlab "https://oauth2:${GITLAB_TOKEN}@gitlab.com/mukeshv-tech/taskrebulid.git"
           
           echo "Syncing branches and tags to GitLab..."
-          git push --force gitlab "+refs/remotes/origin/*:refs/heads/*"
+          git push --prune --force gitlab "+refs/remotes/origin/*:refs/heads/*"
           git push --tags gitlab
 
           # If triggered by a Pull Request, mirror the specific PR branch
@@ -62,8 +62,8 @@ jobs:
           echo "Syncing code branches and tags to Codeberg..."
           git remote add codeberg "https://${CODEBERG_TOKEN}@codeberg.org/mukeshv-tech/taskrebulid.git"
           
-          # Push remote-tracking branches and tags
-          git push --force codeberg "+refs/remotes/origin/*:refs/heads/*"
+          # Push remote-tracking branches and tags, pruning stale deleted branches from Codeberg
+          git push --prune --force codeberg "+refs/remotes/origin/*:refs/heads/*"
           git push --tags codeberg
 
           # If triggered by a Pull Request, mirror the specific PR branch to Codeberg
