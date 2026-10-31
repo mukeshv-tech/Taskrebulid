@@ -33,37 +33,51 @@ const App: React.FC = () => {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeTaskName, setActiveTaskName] = useState<string | null>(null);
 
-  // App Lock Passcode State
+  // App Lock Passcode & Biometric State
   const [lockSalt, setLockSalt] = useState<string | null>(null);
   const [lockHash, setLockHash] = useState<string | null>(null);
+  const [lockBioId, setLockBioId] = useState<string | null>(null);
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
   const [lockChecked, setLockChecked] = useState<boolean>(false);
   const [showLockSettings, setShowLockSettings] = useState<boolean>(false);
 
-  const handleSaveLock = (newSalt: string, newHash: string) => {
+  const handleSaveLock = (newSalt: string, newHash: string, newBioId?: string | null) => {
     setLockSalt(newSalt);
     setLockHash(newHash);
+    if (newBioId !== undefined) {
+      setLockBioId(newBioId);
+    }
     setIsUnlocked(true);
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({ app_lock_salt: newSalt, app_lock_hash: newHash });
+      const dataToSave: Record<string, any> = { app_lock_salt: newSalt, app_lock_hash: newHash };
+      if (newBioId !== undefined) {
+        if (newBioId) {
+          dataToSave.app_lock_bio_id = newBioId;
+        } else {
+          chrome.storage.local.remove(['app_lock_bio_id']);
+        }
+      }
+      chrome.storage.local.set(dataToSave);
     }
   };
 
   const handleDisableLock = () => {
     setLockSalt(null);
     setLockHash(null);
+    setLockBioId(null);
     setIsUnlocked(true);
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.remove(['app_lock_salt', 'app_lock_hash']);
+      chrome.storage.local.remove(['app_lock_salt', 'app_lock_hash', 'app_lock_bio_id']);
     }
   };
 
   const handleResetLockAndSignOut = async () => {
     setLockSalt(null);
     setLockHash(null);
+    setLockBioId(null);
     setIsUnlocked(true);
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.remove(['app_lock_salt', 'app_lock_hash']);
+      chrome.storage.local.remove(['app_lock_salt', 'app_lock_hash', 'app_lock_bio_id']);
     }
     await handleSignOut();
   };
@@ -88,11 +102,14 @@ const App: React.FC = () => {
   useEffect(() => {
     // 1. First restore session from chrome.storage.local if available
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.get(['supabase-session', 'activeTaskId', 'activeTaskName', 'app_lock_salt', 'app_lock_hash'], async (result) => {
+      chrome.storage.local.get(['supabase-session', 'activeTaskId', 'activeTaskName', 'app_lock_salt', 'app_lock_hash', 'app_lock_bio_id'], async (result) => {
         const hasLockConfig = !!(result.app_lock_hash && result.app_lock_salt);
         if (hasLockConfig) {
           setLockSalt(result.app_lock_salt);
           setLockHash(result.app_lock_hash);
+          if (result.app_lock_bio_id) {
+            setLockBioId(result.app_lock_bio_id);
+          }
           setIsUnlocked(false);
         } else {
           setIsUnlocked(true);
@@ -499,6 +516,7 @@ const App: React.FC = () => {
       <AppLockScreen
         salt={lockSalt}
         expectedHash={lockHash}
+        biometricCredentialId={lockBioId}
         onUnlock={() => setIsUnlocked(true)}
         onResetAccount={handleResetLockAndSignOut}
       />
@@ -807,6 +825,7 @@ const App: React.FC = () => {
           hasLock={!!lockHash}
           salt={lockSalt || undefined}
           expectedHash={lockHash || undefined}
+          biometricCredentialId={lockBioId}
           onClose={() => setShowLockSettings(false)}
           onSaveLock={handleSaveLock}
           onDisableLock={handleDisableLock}

@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { hashPassword, generateSalt } from '../../lib/crypto';
+import { isBiometricsAvailable, registerBiometrics } from '../../lib/webauthn';
 
 interface AppLockSettingsModalProps {
   hasLock: boolean;
   salt?: string;
   expectedHash?: string;
+  biometricCredentialId?: string | null;
   onClose: () => void;
-  onSaveLock: (newSalt: string, newHash: string) => void;
+  onSaveLock: (newSalt: string, newHash: string, newBiometricId?: string | null) => void;
   onDisableLock: () => void;
 }
 
@@ -14,6 +16,7 @@ export const AppLockSettingsModal: React.FC<AppLockSettingsModalProps> = ({
   hasLock,
   salt,
   expectedHash,
+  biometricCredentialId,
   onClose,
   onSaveLock,
   onDisableLock
@@ -24,6 +27,42 @@ export const AppLockSettingsModal: React.FC<AppLockSettingsModalProps> = ({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [bioSupported, setBioSupported] = useState(false);
+  const [bioRegistered, setBioRegistered] = useState(!!biometricCredentialId);
+  const [bioLoading, setBioLoading] = useState(false);
+
+  useEffect(() => {
+    isBiometricsAvailable().then((avail) => {
+      setBioSupported(avail);
+    });
+  }, []);
+
+  const handleRegisterBiometrics = async () => {
+    setBioLoading(true);
+    setError('');
+    try {
+      const cred = await registerBiometrics('TaskRebuild User');
+      setBioRegistered(true);
+      setSuccess('Biometrics registered successfully!');
+      if (salt && expectedHash) {
+        onSaveLock(salt, expectedHash, cred.id);
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to setup biometrics.');
+    } finally {
+      setBioLoading(false);
+    }
+  };
+
+  const handleRemoveBiometrics = () => {
+    if (confirm('Remove biometric authentication? You will still be able to unlock with your master password.')) {
+      setBioRegistered(false);
+      if (salt && expectedHash) {
+        onSaveLock(salt, expectedHash, null);
+      }
+      setSuccess('Biometrics removed.');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +92,7 @@ export const AppLockSettingsModal: React.FC<AppLockSettingsModalProps> = ({
     try {
       const newSalt = generateSalt();
       const newHash = await hashPassword(newPassword, newSalt);
-      onSaveLock(newSalt, newHash);
+      onSaveLock(newSalt, newHash, bioRegistered ? biometricCredentialId : null);
       setSuccess('App lock password updated successfully!');
       setTimeout(() => {
         onClose();
@@ -73,7 +112,7 @@ export const AppLockSettingsModal: React.FC<AppLockSettingsModalProps> = ({
         return;
       }
     }
-    if (confirm('Are you sure you want to remove password protection from opening the extension?')) {
+    if (confirm('Are you sure you want to remove password & biometric protection from opening the extension?')) {
       onDisableLock();
       onClose();
     }
@@ -106,7 +145,7 @@ export const AppLockSettingsModal: React.FC<AppLockSettingsModalProps> = ({
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
           <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>🔒</span> {hasLock ? 'Change Master Password' : 'Set Master Password'}
+            <span>🔒</span> {hasLock ? 'App Lock & Biometrics' : 'Set Master Password'}
           </h3>
           <button
             onClick={onClose}
@@ -118,8 +157,8 @@ export const AppLockSettingsModal: React.FC<AppLockSettingsModalProps> = ({
 
         <p style={{ margin: '0 0 14px 0', fontSize: '12px', color: '#64748b' }}>
           {hasLock
-            ? 'Update your master password or disable password protection.'
-            : 'Protect TaskRebuild with a master password required whenever the extension is opened.'}
+            ? 'Manage master password and Windows Hello / Touch ID biometrics.'
+            : 'Protect TaskRebuild with a master password and biometrics required whenever the extension is opened.'}
         </p>
 
         {error && (
@@ -130,6 +169,40 @@ export const AppLockSettingsModal: React.FC<AppLockSettingsModalProps> = ({
         {success && (
           <div style={{ background: '#dcfce7', color: '#16a34a', padding: '8px', borderRadius: '4px', fontSize: '11px', marginBottom: '12px' }}>
             {success}
+          </div>
+        )}
+
+        {/* Windows Hello / Touch ID Toggle */}
+        {bioSupported && hasLock && (
+          <div style={{ marginBottom: '16px', padding: '10px', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <strong style={{ fontSize: '12px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span>👆</span> Biometric Lock
+                </strong>
+                <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#64748b' }}>
+                  Windows Hello / Touch ID
+                </p>
+              </div>
+              {bioRegistered ? (
+                <button
+                  type="button"
+                  onClick={handleRemoveBiometrics}
+                  style={{ padding: '4px 8px', fontSize: '11px', background: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Remove
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleRegisterBiometrics}
+                  disabled={bioLoading}
+                  style={{ padding: '4px 8px', fontSize: '11px', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '4px', cursor: bioLoading ? 'not-allowed' : 'pointer', fontWeight: 600 }}
+                >
+                  {bioLoading ? 'Setting up...' : 'Enable'}
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -221,7 +294,7 @@ export const AppLockSettingsModal: React.FC<AppLockSettingsModalProps> = ({
               onClick={handleDisable}
               style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
             >
-              Disable Password Protection
+              Disable App Lock
             </button>
           </div>
         )}
