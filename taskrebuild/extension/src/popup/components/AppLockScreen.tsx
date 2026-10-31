@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { hashPassword } from '../../lib/crypto';
+import { verifyBiometrics, isBiometricsAvailable } from '../../lib/webauthn';
 
 interface AppLockScreenProps {
   salt: string;
   expectedHash: string;
+  biometricCredentialId?: string | null;
   onUnlock: () => void;
   onResetAccount: () => void;
 }
@@ -11,13 +13,50 @@ interface AppLockScreenProps {
 export const AppLockScreen: React.FC<AppLockScreenProps> = ({
   salt,
   expectedHash,
+  biometricCredentialId,
   onUnlock,
   onResetAccount
 }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [bioLoading, setBioLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [hasBiometrics, setHasBiometrics] = useState(false);
+
+  useEffect(() => {
+    isBiometricsAvailable().then((available) => {
+      setHasBiometrics(available && !!biometricCredentialId);
+      // Auto-trigger biometric prompt if credential is saved
+      if (available && biometricCredentialId) {
+        handleBiometricUnlock(biometricCredentialId);
+      }
+    });
+  }, [biometricCredentialId]);
+
+  const handleBiometricUnlock = async (credIdToUse?: string) => {
+    const targetId = credIdToUse || biometricCredentialId;
+    if (!targetId) return;
+
+    setBioLoading(true);
+    setError('');
+    try {
+      const verified = await verifyBiometrics(targetId);
+      if (verified) {
+        onUnlock();
+      }
+    } catch (err: any) {
+      console.warn('Biometric unlock failed:', err);
+      // If user cancelled, don't scream error, just fall back to password
+      if (err?.message?.includes('cancelled')) {
+        setError('Biometric authentication cancelled. Enter your password.');
+      } else {
+        setError(err?.message || 'Biometric authentication failed.');
+      }
+    } finally {
+      setBioLoading(false);
+    }
+  };
 
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,8 +111,43 @@ export const AppLockScreen: React.FC<AppLockScreenProps> = ({
         TaskRebuild Locked
       </h2>
       <p style={{ margin: '0 0 20px 0', fontSize: '12px', color: '#64748b' }}>
-        Enter your master password to access your tasks and research.
+        Unlock using Windows Hello / Touch ID or your master password.
       </p>
+
+      {/* Biometric Quick Unlock Button */}
+      {hasBiometrics && (
+        <div style={{ marginBottom: '18px' }}>
+          <button
+            type="button"
+            onClick={() => handleBiometricUnlock()}
+            disabled={bioLoading}
+            style={{
+              width: '100%',
+              padding: '11px',
+              background: '#0ea5e9',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: bioLoading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'background 0.15s ease'
+            }}
+          >
+            <span>👆</span>
+            <span>{bioLoading ? 'Scanning Biometrics...' : 'Unlock with Windows Hello / Touch ID'}</span>
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', margin: '14px 0', color: '#94a3b8' }}>
+            <div style={{ flex: 1, height: '1px', background: '#e2e8f0' }} />
+            <span style={{ padding: '0 10px', fontSize: '11px', textTransform: 'uppercase' }}>or password</span>
+            <div style={{ flex: 1, height: '1px', background: '#e2e8f0' }} />
+          </div>
+        </div>
+      )}
 
       {error && (
         <div
@@ -95,10 +169,10 @@ export const AppLockScreen: React.FC<AppLockScreenProps> = ({
         <div style={{ position: 'relative' }}>
           <input
             type={showPassword ? 'text' : 'password'}
-            placeholder="Enter password"
+            placeholder="Enter master password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            autoFocus
+            autoFocus={!hasBiometrics}
             required
             style={{
               width: '100%',
@@ -147,7 +221,7 @@ export const AppLockScreen: React.FC<AppLockScreenProps> = ({
             transition: 'background 0.15s ease'
           }}
         >
-          {loading ? 'Verifying...' : 'Unlock Extension'}
+          {loading ? 'Verifying...' : 'Unlock with Password'}
         </button>
       </form>
 
