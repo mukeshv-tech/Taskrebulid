@@ -23,7 +23,8 @@ jobs:
   # 1. Code Mirroring Job (Branches, PR Refs & Branch Deletions)
   sync-git:
     name: "Sync Code Branches & PRs"
-    if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'delete'
+    # Skip Dependabot-created internal PR branches from running the mirror job, since Dependabot PRs do not have access to repo secrets
+    if: (github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'delete') && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
