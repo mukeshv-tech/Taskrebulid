@@ -87,7 +87,7 @@ jobs:
             PR_BRANCH="pr-${{ github.event.pull_request.number }}"
             echo "Mirroring PR #${{ github.event.pull_request.number }} branch ($PR_BRANCH) to Codeberg..."
             git checkout -b "$PR_BRANCH" "${{ github.sha }}" 2>/dev/null || git checkout "$PR_BRANCH"
-            git push --force codeberg "$PR_BRANCH"
+            git push --force codeberg "$PR_BRANCH" || true
           fi
 
   # 2. Issues, PRs, and Comments API Sync Job
@@ -95,7 +95,7 @@ jobs:
     name: "Sync Issues, PRs & Comments to GitLab & Codeberg"
     # Ensure code branches and PR branches are mirrored first before creating Merge Requests / Pull Requests
     needs: [sync-git]
-    if: always() && (needs.sync-git.result == 'success' || needs.sync-git.result == 'skipped') && (github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment')
+    if: always() && github.actor != 'dependabot[bot]' && (needs.sync-git.result == 'success' || needs.sync-git.result == 'skipped') && (github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
