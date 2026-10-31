@@ -9,7 +9,7 @@ on:
 jobs:
   backend-test:
     name: "Backend: Pytest & Lint"
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: render-backend
@@ -47,7 +47,7 @@ jobs:
 
   frontend-extension:
     name: "Frontend: Typecheck, Lint & Build"
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: taskrebuild/extension
