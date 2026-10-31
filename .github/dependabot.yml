@@ -4,7 +4,7 @@ updates:
   - package-ecosystem: "npm"
     directory: "/taskrebuild/extension"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     open-pull-requests-limit: 10
     groups:
       dependencies:
@@ -15,7 +15,7 @@ updates:
   - package-ecosystem: "npm"
     directory: "/web"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     open-pull-requests-limit: 10
     groups:
       dependencies:
@@ -26,7 +26,7 @@ updates:
   - package-ecosystem: "pip"
     directory: "/render-backend"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     open-pull-requests-limit: 10
     groups:
       dependencies:
@@ -37,7 +37,7 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     open-pull-requests-limit: 10
     groups:
       actions:
