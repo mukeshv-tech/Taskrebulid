@@ -2,6 +2,7 @@ generate.js
 *.gguf
 node_modules/
 dist/
+*.pem
 .env
 .env.*
 *.pyc
