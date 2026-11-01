@@ -26,9 +26,85 @@ logger = logging.getLogger("gitlab_sync")
 METADATA_HEADER = "<!-- GH-METADATA: {payload} -->"
 
 
+GL_METADATA_HEADER = "<!-- GL-METADATA: {payload} -->"
+
+
 class GitLabSyncError(Exception):
     """Custom exception for sync failures that should fail the GitHub Action job."""
     pass
+
+
+class GitHubClient:
+    def __init__(self, token: str, repo: str, base_url: str = "https://api.github.com"):
+        self.token = token
+        self.repo = repo.strip()
+        self.base_url = base_url.rstrip("/")
+        self.headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "TaskRebuild-GitLabSync/2.0"
+        }
+
+    def request(self, endpoint: str, data: dict = None, method: str = "GET", max_retries: int = 3):
+        url = f"{self.base_url}/repos/{self.repo}/{endpoint.lstrip('/')}"
+        encoded_data = None
+        req_headers = dict(self.headers)
+
+        if data is not None:
+            encoded_data = json.dumps(data).encode("utf-8")
+            req_headers["Content-Type"] = "application/json"
+
+        for attempt in range(1, max_retries + 1):
+            req = urllib.request.Request(url, data=encoded_data, headers=req_headers, method=method)
+            try:
+                with urllib.request.urlopen(req) as resp:
+                    resp_body = resp.read().decode("utf-8")
+                    headers = dict(resp.info())
+                    parsed = json.loads(resp_body) if resp_body.strip() else {}
+                    return parsed, headers
+            except urllib.error.HTTPError as e:
+                err_body = e.read().decode("utf-8", errors="replace")
+                if e.code in (429, 500, 502, 503, 504) and attempt < max_retries:
+                    retry_after = 2 ** attempt
+                    logger.warning(f"GitHub API returned {e.code}. Retrying in {retry_after}s... (Attempt {attempt}/{max_retries})")
+                    time.sleep(retry_after)
+                    continue
+                logger.error(f"GitHub API Error [{method} {endpoint}]: HTTP {e.code} -> {err_body}")
+                raise GitLabSyncError(f"GitHub API failed with HTTP {e.code}: {err_body}")
+            except urllib.error.URLError as e:
+                if attempt < max_retries:
+                    time.sleep(2 ** attempt)
+                    continue
+                logger.error(f"Network error connecting to GitHub: {e.reason}")
+                raise GitLabSyncError(f"Network error: {e.reason}")
+
+        raise GitLabSyncError(f"Failed {method} {endpoint} after {max_retries} retries")
+
+    def paginate(self, endpoint: str, params: dict = None, max_pages: int = 20) -> list:
+        results = []
+        page = 1
+        query_params = dict(params or {})
+        query_params["per_page"] = 100
+
+        while page <= max_pages:
+            query_params["page"] = page
+            qs = urllib.parse.urlencode(query_params)
+            sep = "&" if "?" in endpoint else "?"
+            full_endpoint = f"{endpoint}{sep}{qs}"
+
+            data, headers = self.request(full_endpoint, method="GET")
+            if not isinstance(data, list) or not data:
+                break
+
+            results.extend(data)
+            # Check Link header for rel="next"
+            link_header = headers.get("link") or headers.get("Link")
+            if not link_header or 'rel="next"' not in link_header:
+                break
+            page += 1
+
+        return results
 
 
 class GitLabClient:
@@ -112,11 +188,32 @@ def build_metadata(repo_id: str, item_type: str, item_id: str, extra: dict = Non
     return METADATA_HEADER.format(payload=json.dumps(payload, separators=(",", ":")))
 
 
+def build_gl_metadata(project_id: str, item_type: str, item_id: str, extra: dict = None) -> str:
+    payload = {
+        "project_id": str(project_id),
+        "type": item_type,
+        "id": str(item_id),
+        **(extra or {})
+    }
+    return GL_METADATA_HEADER.format(payload=json.dumps(payload, separators=(",", ":")))
+
+
 def extract_metadata(body: str) -> dict:
     if not body or "<!-- GH-METADATA:" not in body:
         return {}
     try:
         start = body.index("<!-- GH-METADATA:") + len("<!-- GH-METADATA:")
+        end = body.index("-->", start)
+        return json.loads(body[start:end].strip())
+    except Exception:
+        return {}
+
+
+def extract_gl_metadata(body: str) -> dict:
+    if not body or "<!-- GL-METADATA:" not in body:
+        return {}
+    try:
+        start = body.index("<!-- GL-METADATA:") + len("<!-- GL-METADATA:")
         end = body.index("-->", start)
         return json.loads(body[start:end].strip())
     except Exception:
@@ -348,38 +445,190 @@ def sync_pull_request(client: GitLabClient, repo_id: str, event_data: dict):
             logger.warning(f"Could not open GitLab MR directly (branch may still be syncing): {e}")
 
 
+def sync_gitlab_to_github_comments(gitlab_client: GitLabClient, gh_client: GitHubClient, repo_id: str):
+    """
+    Polls recent GitLab issues and merge requests for comments/notes created on GitLab,
+    and mirrors them back to GitHub issues or pull requests.
+    Prevents infinite loops by:
+    - Ignoring notes that contain GH-METADATA or GL-METADATA
+    - Ignoring GitLab system notes (actions like closed, labeled, branch merged, etc.)
+    - Checking GitHub issue comments to ensure note hasn't already been mirrored
+    """
+    logger.info("Checking for new comments/notes on GitLab to sync back to GitHub...")
+
+    # 1. Sync comments from GitLab Issues
+    try:
+        gl_issues = gitlab_client.paginate("issues", {"state": "all", "per_page": 50})
+    except Exception as e:
+        logger.warning(f"Failed to fetch GitLab issues for reverse comment sync: {e}")
+        gl_issues = []
+
+    for issue in gl_issues:
+        meta = extract_metadata(issue.get("description", ""))
+        if not meta or meta.get("type") != "issue" or not meta.get("id"):
+            continue
+        # Check repo_id matches if present
+        if meta.get("repo_id") and str(meta.get("repo_id")) != str(repo_id):
+            continue
+
+        gh_issue_number = int(meta["id"])
+        gl_iid = issue.get("iid")
+
+        try:
+            notes = gitlab_client.paginate(f"issues/{gl_iid}/notes")
+        except Exception as e:
+            logger.warning(f"Failed to fetch notes for GitLab issue #{gl_iid}: {e}")
+            continue
+
+        # Fetch existing GitHub comments for this issue to check for duplicates
+        try:
+            gh_comments = gh_client.paginate(f"issues/{gh_issue_number}/comments")
+        except Exception as e:
+            logger.warning(f"Failed to fetch comments for GitHub issue #{gh_issue_number}: {e}")
+            continue
+
+        for note in notes:
+            if note.get("system", False):
+                continue
+            body = note.get("body", "") or ""
+            # Prevent infinite echo loops
+            if "<!-- GH-METADATA:" in body or "<!-- GL-METADATA:" in body:
+                continue
+
+            note_id = str(note.get("id"))
+            note_author = note.get("author", {}).get("username", "unknown")
+            note_url = note.get("web_url") or f"https://gitlab.com/{gh_client.repo}/-/issues/{gl_iid}#note_{note_id}"
+
+            # Check if already mirrored to GitHub
+            needle = f'"id":"{note_id}"'
+            already_synced = any(needle in (c.get("body") or "") for c in gh_comments)
+            if already_synced:
+                continue
+
+            # Post note to GitHub issue
+            gl_meta = build_gl_metadata(gitlab_client.project_id, "comment", note_id, {"gl_issue": gl_iid})
+            comment_payload = {
+                "body": (
+                    f"{gl_meta}\n"
+                    f"> **@{note_author}** (via [GitLab Issue #{gl_iid}]({note_url})):\n\n"
+                    f"{body}"
+                )
+            }
+            logger.info(f"Syncing GitLab note {note_id} to GitHub issue #{gh_issue_number}")
+            try:
+                gh_client.request(f"issues/{gh_issue_number}/comments", data=comment_payload, method="POST")
+            except Exception as e:
+                logger.error(f"Failed to post comment to GitHub issue #{gh_issue_number}: {e}")
+
+    # 2. Sync comments from GitLab Merge Requests
+    try:
+        gl_mrs = gitlab_client.paginate("merge_requests", {"state": "all", "per_page": 50})
+    except Exception as e:
+        logger.warning(f"Failed to fetch GitLab MRs for reverse comment sync: {e}")
+        gl_mrs = []
+
+    for mr in gl_mrs:
+        meta = extract_metadata(mr.get("description", ""))
+        if not meta or meta.get("type") != "pull_request" or not meta.get("id"):
+            continue
+        if meta.get("repo_id") and str(meta.get("repo_id")) != str(repo_id):
+            continue
+
+        gh_pr_number = int(meta["id"])
+        gl_mr_iid = mr.get("iid")
+
+        try:
+            notes = gitlab_client.paginate(f"merge_requests/{gl_mr_iid}/notes")
+        except Exception as e:
+            logger.warning(f"Failed to fetch notes for GitLab MR !{gl_mr_iid}: {e}")
+            continue
+
+        # In GitHub, PR comments are also on /issues/{pr_number}/comments
+        try:
+            gh_comments = gh_client.paginate(f"issues/{gh_pr_number}/comments")
+        except Exception as e:
+            logger.warning(f"Failed to fetch comments for GitHub PR #{gh_pr_number}: {e}")
+            continue
+
+        for note in notes:
+            if note.get("system", False):
+                continue
+            body = note.get("body", "") or ""
+            if "<!-- GH-METADATA:" in body or "<!-- GL-METADATA:" in body:
+                continue
+
+            note_id = str(note.get("id"))
+            note_author = note.get("author", {}).get("username", "unknown")
+            note_url = note.get("web_url") or f"https://gitlab.com/{gh_client.repo}/-/merge_requests/{gl_mr_iid}#note_{note_id}"
+
+            needle = f'"id":"{note_id}"'
+            already_synced = any(needle in (c.get("body") or "") for c in gh_comments)
+            if already_synced:
+                continue
+
+            gl_meta = build_gl_metadata(gitlab_client.project_id, "comment", note_id, {"gl_mr": gl_mr_iid})
+            comment_payload = {
+                "body": (
+                    f"{gl_meta}\n"
+                    f"> **@{note_author}** (via [GitLab MR !{gl_mr_iid}]({note_url})):\n\n"
+                    f"{body}"
+                )
+            }
+            logger.info(f"Syncing GitLab note {note_id} to GitHub PR #{gh_pr_number}")
+            try:
+                gh_client.request(f"issues/{gh_pr_number}/comments", data=comment_payload, method="POST")
+            except Exception as e:
+                logger.error(f"Failed to post comment to GitHub PR #{gh_pr_number}: {e}")
+
+
 def main():
     token = os.environ.get("GITLAB_TOKEN")
     project_id = os.environ.get("GITLAB_PROJECT_ID")
-    event_name = os.environ.get("EVENT_NAME")
+    gh_token = os.environ.get("GITHUB_TOKEN")
+    repo_slug = os.environ.get("GITHUB_REPOSITORY", "mukeshv-tech/Taskrebulid")
+    event_name = os.environ.get("EVENT_NAME", "")
     event_path = os.environ.get("GITHUB_EVENT_PATH")
-    repo_id = os.environ.get("GITHUB_REPOSITORY_ID") or os.environ.get("GITHUB_REPOSITORY", "unknown_repo")
+    repo_id = os.environ.get("GITHUB_REPOSITORY_ID") or repo_slug
 
     if not token or not project_id:
         logger.error("GITLAB_TOKEN or GITLAB_PROJECT_ID is not configured.")
         sys.exit(1)
 
-    if not event_path or not os.path.exists(event_path):
-        logger.error(f"Event payload file not found: {event_path}")
-        sys.exit(1)
+    gitlab_client = GitLabClient(token=token, project_id=project_id)
+    gh_client = GitHubClient(token=gh_token, repo=repo_slug) if gh_token else None
 
-    with open(event_path, "r", encoding="utf-8") as f:
-        event_data = json.load(f)
+    # Handle forward sync (GitHub -> GitLab)
+    if event_path and os.path.exists(event_path):
+        with open(event_path, "r", encoding="utf-8") as f:
+            event_data = json.load(f)
 
-    client = GitLabClient(token=token, project_id=project_id)
+        logger.info(f"Executing GitLab sync for GitHub event: {event_name}")
 
-    logger.info(f"Executing GitLab sync for GitHub event: {event_name}")
+        if event_name == "issues":
+            sync_issue(gitlab_client, repo_id, event_data)
+        elif event_name == "issue_comment":
+            # Avoid mirroring comments that originated from GitLab
+            c_body = event_data.get("comment", {}).get("body", "")
+            if "<!-- GL-METADATA:" not in c_body and "<!-- GH-METADATA:" not in c_body:
+                sync_comment(gitlab_client, repo_id, event_data, is_pr_review=False)
+            else:
+                logger.info("Skipping mirror of comment containing sync metadata to prevent loop.")
+        elif event_name == "pull_request":
+            sync_pull_request(gitlab_client, repo_id, event_data)
+        elif event_name == "pull_request_review_comment":
+            c_body = event_data.get("comment", {}).get("body", "")
+            if "<!-- GL-METADATA:" not in c_body and "<!-- GH-METADATA:" not in c_body:
+                sync_comment(gitlab_client, repo_id, event_data, is_pr_review=True)
+            else:
+                logger.info("Skipping mirror of review comment containing sync metadata to prevent loop.")
+        else:
+            logger.info(f"Event '{event_name}' does not require issue or PR forward synchronization.")
 
-    if event_name == "issues":
-        sync_issue(client, repo_id, event_data)
-    elif event_name == "issue_comment":
-        sync_comment(client, repo_id, event_data, is_pr_review=False)
-    elif event_name == "pull_request":
-        sync_pull_request(client, repo_id, event_data)
-    elif event_name == "pull_request_review_comment":
-        sync_comment(client, repo_id, event_data, is_pr_review=True)
+    # Handle reverse sync (GitLab -> GitHub)
+    if gh_client:
+        sync_gitlab_to_github_comments(gitlab_client, gh_client, repo_id)
     else:
-        logger.info(f"Event '{event_name}' does not require issue or PR API synchronization.")
+        logger.warning("GITHUB_TOKEN not available; skipping reverse GitLab -> GitHub comment synchronization.")
 
     logger.info("GitLab synchronization finished successfully.")
 

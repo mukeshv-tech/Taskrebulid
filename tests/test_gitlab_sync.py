@@ -6,11 +6,14 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".github", "scripts")))
 from gitlab_sync import (
     build_metadata,
+    build_gl_metadata,
     extract_metadata,
+    extract_gl_metadata,
     find_gitlab_issue,
     sync_issue,
     sync_comment,
-    sync_pull_request
+    sync_pull_request,
+    sync_gitlab_to_github_comments
 )
 
 class TestGitLabSync(unittest.TestCase):
@@ -113,6 +116,76 @@ class TestGitLabSync(unittest.TestCase):
         self.assertEqual(kwargs["method"], "POST")
         self.assertEqual(kwargs["data"]["source_branch"], "pr-3")
         self.assertEqual(kwargs["data"]["target_branch"], "main")
+
+    def test_gl_metadata_serialization(self):
+        meta = build_gl_metadata("88286291", "comment", "555", {"gl_issue": 10})
+        self.assertIn("<!-- GL-METADATA:", meta)
+        parsed = extract_gl_metadata(meta)
+        self.assertEqual(parsed["project_id"], "88286291")
+        self.assertEqual(parsed["type"], "comment")
+        self.assertEqual(parsed["id"], "555")
+        self.assertEqual(parsed["gl_issue"], 10)
+
+    def test_sync_gitlab_to_github_comment(self):
+        # Setup mock GitLab client and GitHub client
+        mock_gh_client = MagicMock()
+        mock_gh_client.repo = "mukeshv-tech/Taskrebulid"
+
+        # GitLab has 1 issue mirrored from GitHub #42
+        gh_meta = build_metadata(self.repo_id, "issue", "42")
+        self.mock_client.paginate.side_effect = [
+            # gl_issues
+            [{"iid": 1, "description": f"GitLab Issue Description\n{gh_meta}"}],
+            # notes for issue #1
+            [
+                {"id": 777, "system": False, "body": "Hello from GitLab user!", "author": {"username": "gitlab_user"}, "web_url": "https://gitlab.com/note/777"}
+            ],
+            # gl_mrs
+            []
+        ]
+
+        # GitHub comments has no prior mirrored note 777
+        mock_gh_client.paginate.return_value = []
+
+        sync_gitlab_to_github_comments(self.mock_client, mock_gh_client, self.repo_id)
+
+        # Ensure GitHub received comment
+        mock_gh_client.request.assert_called_once()
+        endpoint, kwargs = mock_gh_client.request.call_args[0][0], mock_gh_client.request.call_args[1]
+        self.assertEqual(endpoint, "issues/42/comments")
+        self.assertEqual(kwargs["method"], "POST")
+        self.assertIn('"id":"777"', kwargs["data"]["body"])
+        self.assertIn("@gitlab_user", kwargs["data"]["body"])
+        self.assertIn("Hello from GitLab user!", kwargs["data"]["body"])
+
+    def test_sync_gitlab_to_github_loop_prevention(self):
+        mock_gh_client = MagicMock()
+        mock_gh_client.repo = "mukeshv-tech/Taskrebulid"
+
+        gh_meta = build_metadata(self.repo_id, "issue", "42")
+        self.mock_client.paginate.side_effect = [
+            # gl_issues
+            [{"iid": 1, "description": f"GitLab Issue Description\n{gh_meta}"}],
+            # notes for issue #1 containing: system note, GH-METADATA echo, GL-METADATA echo, and already synced note
+            [
+                {"id": 1, "system": True, "body": "closed issue"},
+                {"id": 2, "system": False, "body": "<!-- GH-METADATA: {\"id\": \"99\"} -->\nComment from GH"},
+                {"id": 3, "system": False, "body": "<!-- GL-METADATA: {\"id\": \"88\"} -->\nAlready synced"},
+                {"id": 4, "system": False, "body": "Note already on GH", "author": {"username": "alice"}},
+            ],
+            # gl_mrs
+            []
+        ]
+
+        # Note 4 was already synced to GitHub previously
+        mock_gh_client.paginate.return_value = [
+            {"body": "<!-- GL-METADATA: {\"id\":\"4\"} -->\n> Alice: Note already on GH"}
+        ]
+
+        sync_gitlab_to_github_comments(self.mock_client, mock_gh_client, self.repo_id)
+
+        # No new comments should be posted to GitHub
+        mock_gh_client.request.assert_not_called()
 
 if __name__ == "__main__":
     unittest.main()

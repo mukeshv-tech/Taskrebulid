@@ -1,6 +1,10 @@
 name: "Mirror to GitLab & Codeberg (Code, Issues & PRs)"
 
 on:
+  schedule:
+    # Run bidirectional synchronization every 15 minutes to pull comments from GitLab
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
   push:
     branches: [ "**" ]
     tags: [ "**" ]
@@ -95,7 +99,7 @@ jobs:
     name: "Sync Issues, PRs & Comments to GitLab & Codeberg"
     # Ensure code branches and PR branches are mirrored first before creating Merge Requests / Pull Requests
     needs: [sync-git]
-    if: always() && github.actor != 'dependabot[bot]' && (needs.sync-git.result == 'success' || needs.sync-git.result == 'skipped') && (github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment')
+    if: always() && github.actor != 'dependabot[bot]' && (needs.sync-git.result == 'success' || needs.sync-git.result == 'skipped') && (github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request' || github.event_name == 'pull_request_review_comment' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -110,6 +114,8 @@ jobs:
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
           GITLAB_PROJECT_ID: "88286291"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
           EVENT_NAME: ${{ github.event_name }}
           GITHUB_EVENT_PATH: ${{ github.event_path }}
