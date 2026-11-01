@@ -123,3 +123,7 @@ Issues, pull requests, comments, discussions and other project-management metada
 GitHub remains the authoritative source. GitLab and Codeberg are downstream mirrors with different synchronization scopes.
 
 Codeberg's limited synchronization is intentional and is not considered an incomplete or failed synchronization.
+
+
+
+[![Architecture diagram of mukeshv-tech/taskrebulid](https://gitdiagram.com/mukeshv-tech/taskrebulid/diagram.png)](https://gitdiagram.com/mukeshv-tech/taskrebulid?utm_source=readme&utm_medium=picture)
