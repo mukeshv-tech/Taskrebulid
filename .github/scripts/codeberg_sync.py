@@ -5,7 +5,6 @@ Synchronizes GitHub Pull Requests to Codeberg (create, update title/desc, open/c
 """
 
 import os
-import sys
 import json
 import time
 import urllib.request
