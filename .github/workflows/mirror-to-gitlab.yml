@@ -122,11 +122,13 @@ jobs:
         run: |
           python .github/scripts/gitlab_sync.py
 
-      - name: Run Codeberg PR Sync Engine
-        if: github.event_name == 'pull_request' && env.CODEBERG_TOKEN != ''
+      - name: Run Codeberg PR & Comment Sync Engine
+        if: env.CODEBERG_TOKEN != ''
         env:
           CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
           CODEBERG_REPO: "mukeshv-tech/taskrebulid"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
           EVENT_NAME: ${{ github.event_name }}
           GITHUB_EVENT_PATH: ${{ github.event_path }}

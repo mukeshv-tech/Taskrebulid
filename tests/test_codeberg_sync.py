@@ -6,9 +6,12 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".github", "scripts")))
 from codeberg_sync import (
     build_metadata,
+    build_cb_metadata,
     extract_metadata,
+    extract_cb_metadata,
     find_codeberg_pr,
-    sync_pull_request_to_codeberg
+    sync_pull_request_to_codeberg,
+    sync_codeberg_to_github
 )
 
 class TestCodebergSync(unittest.TestCase):
@@ -89,6 +92,65 @@ class TestCodebergSync(unittest.TestCase):
         self.assertEqual(args[0], "pulls/5")
         self.assertEqual(kwargs["method"], "PATCH")
         self.assertEqual(kwargs["data"]["state"], "closed")
+
+    def test_cb_metadata_serialization(self):
+        meta = build_cb_metadata("mukeshv-tech", "taskrebulid", "comment", "123")
+        self.assertIn("<!-- CB-METADATA:", meta)
+        parsed = extract_cb_metadata(meta)
+        self.assertEqual(parsed["repo"], "mukeshv-tech/taskrebulid")
+        self.assertEqual(parsed["id"], "123")
+        self.assertEqual(parsed["type"], "comment")
+
+    def test_sync_codeberg_to_github_comment(self):
+        mock_gh = MagicMock()
+        mock_gh.repo = "mukeshv-tech/Taskrebulid"
+        mock_gh.request.return_value = ({"state": "open"}, {})
+        mock_gh.paginate.return_value = []
+
+        self.mock_client.repo_owner = "mukeshv-tech"
+        self.mock_client.repo_name = "taskrebulid"
+        meta = build_metadata(self.repo_id, "pull_request", "88")
+        self.mock_client.paginate.side_effect = [
+            # pulls
+            [{"number": 1, "body": f"PR description\n{meta}", "state": "open"}],
+            # comments on PR 1
+            [{"id": 404, "body": "Hello from Codeberg!", "user": {"login": "codeberg_dev"}}],
+        ]
+
+        sync_codeberg_to_github(self.mock_client, mock_gh, self.repo_id)
+
+        post_calls = [call for call in mock_gh.request.call_args_list if call[1].get("method") == "POST"]
+        self.assertEqual(len(post_calls), 1)
+        self.assertEqual(post_calls[0][0][0], "issues/88/comments")
+        self.assertIn('"id":"404"', post_calls[0][1]["data"]["body"])
+        self.assertIn("@codeberg_dev", post_calls[0][1]["data"]["body"])
+        self.assertIn("Hello from Codeberg!", post_calls[0][1]["data"]["body"])
+
+    def test_sync_codeberg_to_github_loop_prevention(self):
+        mock_gh = MagicMock()
+        mock_gh.repo = "mukeshv-tech/Taskrebulid"
+        mock_gh.request.return_value = ({"state": "open"}, {})
+
+        self.mock_client.repo_owner = "mukeshv-tech"
+        self.mock_client.repo_name = "taskrebulid"
+        meta = build_metadata(self.repo_id, "pull_request", "88")
+        self.mock_client.paginate.side_effect = [
+            # pulls
+            [{"number": 1, "body": f"PR description\n{meta}", "state": "open"}],
+            # comments with metadata echo
+            [
+                {"id": 1, "body": "<!-- GH-METADATA: {\"id\": \"1\"} -->\nComment"},
+                {"id": 2, "body": "<!-- CB-METADATA: {\"id\": \"2\"} -->\nEcho"},
+                {"id": 3, "body": "Already mirrored", "user": {"login": "dev"}}
+            ],
+        ]
+        # Already mirrored on GitHub
+        mock_gh.paginate.return_value = [{"body": "<!-- CB-METADATA: {\"id\":\"3\"} -->\nDev comment"}]
+
+        sync_codeberg_to_github(self.mock_client, mock_gh, self.repo_id)
+
+        post_calls = [call for call in mock_gh.request.call_args_list if call[1].get("method") == "POST"]
+        self.assertEqual(len(post_calls), 0)
 
 if __name__ == "__main__":
     unittest.main()

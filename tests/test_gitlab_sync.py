@@ -130,12 +130,13 @@ class TestGitLabSync(unittest.TestCase):
         # Setup mock GitLab client and GitHub client
         mock_gh_client = MagicMock()
         mock_gh_client.repo = "mukeshv-tech/Taskrebulid"
+        mock_gh_client.request.return_value = ({"state": "open"}, {})
 
         # GitLab has 1 issue mirrored from GitHub #42
         gh_meta = build_metadata(self.repo_id, "issue", "42")
         self.mock_client.paginate.side_effect = [
             # gl_issues
-            [{"iid": 1, "description": f"GitLab Issue Description\n{gh_meta}"}],
+            [{"iid": 1, "description": f"GitLab Issue Description\n{gh_meta}", "state": "opened"}],
             # notes for issue #1
             [
                 {"id": 777, "system": False, "body": "Hello from GitLab user!", "author": {"username": "gitlab_user"}, "web_url": "https://gitlab.com/note/777"}
@@ -150,8 +151,10 @@ class TestGitLabSync(unittest.TestCase):
         sync_gitlab_to_github_comments(self.mock_client, mock_gh_client, self.repo_id)
 
         # Ensure GitHub received comment
-        mock_gh_client.request.assert_called_once()
-        endpoint, kwargs = mock_gh_client.request.call_args[0][0], mock_gh_client.request.call_args[1]
+        # Called once for issue state check, once for comment POST
+        post_calls = [call for call in mock_gh_client.request.call_args_list if call[1].get("method") == "POST"]
+        self.assertEqual(len(post_calls), 1)
+        endpoint, kwargs = post_calls[0][0][0], post_calls[0][1]
         self.assertEqual(endpoint, "issues/42/comments")
         self.assertEqual(kwargs["method"], "POST")
         self.assertIn('"id":"777"', kwargs["data"]["body"])
@@ -161,11 +164,12 @@ class TestGitLabSync(unittest.TestCase):
     def test_sync_gitlab_to_github_loop_prevention(self):
         mock_gh_client = MagicMock()
         mock_gh_client.repo = "mukeshv-tech/Taskrebulid"
+        mock_gh_client.request.return_value = ({"state": "open"}, {})
 
         gh_meta = build_metadata(self.repo_id, "issue", "42")
         self.mock_client.paginate.side_effect = [
             # gl_issues
-            [{"iid": 1, "description": f"GitLab Issue Description\n{gh_meta}"}],
+            [{"iid": 1, "description": f"GitLab Issue Description\n{gh_meta}", "state": "opened"}],
             # notes for issue #1 containing: system note, GH-METADATA echo, GL-METADATA echo, and already synced note
             [
                 {"id": 1, "system": True, "body": "closed issue"},
@@ -185,7 +189,34 @@ class TestGitLabSync(unittest.TestCase):
         sync_gitlab_to_github_comments(self.mock_client, mock_gh_client, self.repo_id)
 
         # No new comments should be posted to GitHub
-        mock_gh_client.request.assert_not_called()
+        post_calls = [call for call in mock_gh_client.request.call_args_list if call[1].get("method") == "POST"]
+        self.assertEqual(len(post_calls), 0)
+
+    def test_sync_gitlab_to_github_state_change(self):
+        mock_gh_client = MagicMock()
+        mock_gh_client.repo = "mukeshv-tech/Taskrebulid"
+        # GitHub issue is currently open
+        mock_gh_client.request.return_value = ({"state": "open"}, {})
+
+        # GitLab issue is closed
+        gh_meta = build_metadata(self.repo_id, "issue", "100")
+        self.mock_client.paginate.side_effect = [
+            # gl_issues
+            [{"iid": 9, "description": f"GitLab Issue\n{gh_meta}", "state": "closed"}],
+            # notes for issue #9
+            [],
+            # gl_mrs
+            []
+        ]
+        mock_gh_client.paginate.return_value = []
+
+        sync_gitlab_to_github_comments(self.mock_client, mock_gh_client, self.repo_id)
+
+        # Check PATCH was called to close GitHub issue #100
+        patch_calls = [call for call in mock_gh_client.request.call_args_list if call[1].get("method") == "PATCH"]
+        self.assertEqual(len(patch_calls), 1)
+        self.assertEqual(patch_calls[0][0][0], "issues/100")
+        self.assertEqual(patch_calls[0][1]["data"], {"state": "closed"})
 
 if __name__ == "__main__":
     unittest.main()

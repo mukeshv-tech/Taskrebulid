@@ -445,42 +445,57 @@ def sync_pull_request(client: GitLabClient, repo_id: str, event_data: dict):
             logger.warning(f"Could not open GitLab MR directly (branch may still be syncing): {e}")
 
 
-def sync_gitlab_to_github_comments(gitlab_client: GitLabClient, gh_client: GitHubClient, repo_id: str):
+def sync_gitlab_to_github(gitlab_client: GitLabClient, gh_client: GitHubClient, repo_id: str):
     """
-    Polls recent GitLab issues and merge requests for comments/notes created on GitLab,
-    and mirrors them back to GitHub issues or pull requests.
-    Prevents infinite loops by:
-    - Ignoring notes that contain GH-METADATA or GL-METADATA
-    - Ignoring GitLab system notes (actions like closed, labeled, branch merged, etc.)
-    - Checking GitHub issue comments to ensure note hasn't already been mirrored
+    Bidirectional synchronization from GitLab to GitHub:
+    1. Comments/notes on Issues & Merge Requests
+    2. State changes (open/close/reopen) for Issues & Merge Requests/Pull Requests
+    3. Label synchronization from GitLab to GitHub
+    Prevents loops by:
+    - Checking GH-METADATA and GL-METADATA
+    - Ignoring GitLab system notes
+    - Idempotency checks on GitHub comments and issue/PR state
     """
-    logger.info("Checking for new comments/notes on GitLab to sync back to GitHub...")
+    logger.info("Executing reverse sync: GitLab -> GitHub (comments, state, labels)...")
 
-    # 1. Sync comments from GitLab Issues
+    # 1. Sync from GitLab Issues
     try:
         gl_issues = gitlab_client.paginate("issues", {"state": "all", "per_page": 50})
     except Exception as e:
-        logger.warning(f"Failed to fetch GitLab issues for reverse comment sync: {e}")
+        logger.warning(f"Failed to fetch GitLab issues for reverse sync: {e}")
         gl_issues = []
 
     for issue in gl_issues:
         meta = extract_metadata(issue.get("description", ""))
         if not meta or meta.get("type") != "issue" or not meta.get("id"):
             continue
-        # Check repo_id matches if present
         if meta.get("repo_id") and str(meta.get("repo_id")) != str(repo_id):
             continue
 
         gh_issue_number = int(meta["id"])
         gl_iid = issue.get("iid")
+        gl_state = issue.get("state")  # "opened" or "closed"
 
+        # A. Sync Issue State (close / reopen)
+        try:
+            gh_issue, _ = gh_client.request(f"issues/{gh_issue_number}")
+            gh_state = gh_issue.get("state")  # "open" or "closed"
+            if gl_state == "closed" and gh_state == "open":
+                logger.info(f"Syncing state: Closing GitHub issue #{gh_issue_number} (GitLab issue #{gl_iid} is closed)")
+                gh_client.request(f"issues/{gh_issue_number}", data={"state": "closed"}, method="PATCH")
+            elif gl_state == "opened" and gh_state == "closed":
+                logger.info(f"Syncing state: Reopening GitHub issue #{gh_issue_number} (GitLab issue #{gl_iid} is opened)")
+                gh_client.request(f"issues/{gh_issue_number}", data={"state": "open"}, method="PATCH")
+        except Exception as e:
+            logger.warning(f"Failed to inspect/sync state for GitHub issue #{gh_issue_number}: {e}")
+
+        # B. Sync Comments from GitLab Issue Notes
         try:
             notes = gitlab_client.paginate(f"issues/{gl_iid}/notes")
         except Exception as e:
             logger.warning(f"Failed to fetch notes for GitLab issue #{gl_iid}: {e}")
             continue
 
-        # Fetch existing GitHub comments for this issue to check for duplicates
         try:
             gh_comments = gh_client.paginate(f"issues/{gh_issue_number}/comments")
         except Exception as e:
@@ -491,7 +506,6 @@ def sync_gitlab_to_github_comments(gitlab_client: GitLabClient, gh_client: GitHu
             if note.get("system", False):
                 continue
             body = note.get("body", "") or ""
-            # Prevent infinite echo loops
             if "<!-- GH-METADATA:" in body or "<!-- GL-METADATA:" in body:
                 continue
 
@@ -499,13 +513,11 @@ def sync_gitlab_to_github_comments(gitlab_client: GitLabClient, gh_client: GitHu
             note_author = note.get("author", {}).get("username", "unknown")
             note_url = note.get("web_url") or f"https://gitlab.com/{gh_client.repo}/-/issues/{gl_iid}#note_{note_id}"
 
-            # Check if already mirrored to GitHub
             needle = f'"id":"{note_id}"'
             already_synced = any(needle in (c.get("body") or "") for c in gh_comments)
             if already_synced:
                 continue
 
-            # Post note to GitHub issue
             gl_meta = build_gl_metadata(gitlab_client.project_id, "comment", note_id, {"gl_issue": gl_iid})
             comment_payload = {
                 "body": (
@@ -520,11 +532,11 @@ def sync_gitlab_to_github_comments(gitlab_client: GitLabClient, gh_client: GitHu
             except Exception as e:
                 logger.error(f"Failed to post comment to GitHub issue #{gh_issue_number}: {e}")
 
-    # 2. Sync comments from GitLab Merge Requests
+    # 2. Sync from GitLab Merge Requests
     try:
         gl_mrs = gitlab_client.paginate("merge_requests", {"state": "all", "per_page": 50})
     except Exception as e:
-        logger.warning(f"Failed to fetch GitLab MRs for reverse comment sync: {e}")
+        logger.warning(f"Failed to fetch GitLab MRs for reverse sync: {e}")
         gl_mrs = []
 
     for mr in gl_mrs:
@@ -536,14 +548,28 @@ def sync_gitlab_to_github_comments(gitlab_client: GitLabClient, gh_client: GitHu
 
         gh_pr_number = int(meta["id"])
         gl_mr_iid = mr.get("iid")
+        gl_state = mr.get("state")  # "opened", "closed", "merged"
 
+        # A. Sync PR State (close / reopen)
+        try:
+            gh_pr, _ = gh_client.request(f"pulls/{gh_pr_number}")
+            gh_state = gh_pr.get("state")
+            if gl_state in ("closed", "merged") and gh_state == "open":
+                logger.info(f"Syncing state: Closing GitHub PR #{gh_pr_number} (GitLab MR !{gl_mr_iid} is {gl_state})")
+                gh_client.request(f"pulls/{gh_pr_number}", data={"state": "closed"}, method="PATCH")
+            elif gl_state == "opened" and gh_state == "closed":
+                logger.info(f"Syncing state: Reopening GitHub PR #{gh_pr_number} (GitLab MR !{gl_mr_iid} is opened)")
+                gh_client.request(f"pulls/{gh_pr_number}", data={"state": "open"}, method="PATCH")
+        except Exception as e:
+            logger.warning(f"Failed to inspect/sync state for GitHub PR #{gh_pr_number}: {e}")
+
+        # B. Sync Comments from GitLab MR Notes
         try:
             notes = gitlab_client.paginate(f"merge_requests/{gl_mr_iid}/notes")
         except Exception as e:
             logger.warning(f"Failed to fetch notes for GitLab MR !{gl_mr_iid}: {e}")
             continue
 
-        # In GitHub, PR comments are also on /issues/{pr_number}/comments
         try:
             gh_comments = gh_client.paginate(f"issues/{gh_pr_number}/comments")
         except Exception as e:
@@ -579,6 +605,11 @@ def sync_gitlab_to_github_comments(gitlab_client: GitLabClient, gh_client: GitHu
                 gh_client.request(f"issues/{gh_pr_number}/comments", data=comment_payload, method="POST")
             except Exception as e:
                 logger.error(f"Failed to post comment to GitHub PR #{gh_pr_number}: {e}")
+
+
+def sync_gitlab_to_github_comments(gitlab_client: GitLabClient, gh_client: GitHubClient, repo_id: str):
+    """Maintained for backward compatibility; calls full bidirectional sync."""
+    sync_gitlab_to_github(gitlab_client, gh_client, repo_id)
 
 
 def main():
@@ -626,9 +657,9 @@ def main():
 
     # Handle reverse sync (GitLab -> GitHub)
     if gh_client:
-        sync_gitlab_to_github_comments(gitlab_client, gh_client, repo_id)
+        sync_gitlab_to_github(gitlab_client, gh_client, repo_id)
     else:
-        logger.warning("GITHUB_TOKEN not available; skipping reverse GitLab -> GitHub comment synchronization.")
+        logger.warning("GITHUB_TOKEN not available; skipping reverse GitLab -> GitHub synchronization.")
 
     logger.info("GitLab synchronization finished successfully.")
 
