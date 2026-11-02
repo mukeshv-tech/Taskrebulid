@@ -133,8 +133,8 @@ const SearchTab: React.FC<SearchProps> = ({ taskId, onNavigateToTask }) => {
   };
 
   return (
-    <div style={{ marginTop: '20px', padding: '15px', background: '#f8fafc', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
-      <h3 style={{ margin: '0 0 10px 0', color: '#0f172a' }}>{taskId ? 'Search this task...' : 'Search TaskRebuild...'}</h3>
+    <div style={{ marginTop: '16px', padding: '14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+      <h3 style={{ margin: '0 0 10px 0', color: 'var(--text-primary)' }}>{taskId ? 'Search this task...' : 'Search TaskRebuild...'}</h3>
       
       <div style={{ position: 'relative', marginBottom: '15px' }}>
         <form onSubmit={handleSearch} style={{ display: 'flex', gap: '8px' }}>
@@ -145,18 +145,18 @@ const SearchTab: React.FC<SearchProps> = ({ taskId, onNavigateToTask }) => {
             onFocus={() => { if(suggestions.length > 0) setShowSuggestions(true); }}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
             placeholder="Keywords or semantic question..."
-            style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+            style={{ flex: 1, padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--input-border)', background: 'var(--input-bg)', color: 'var(--text-primary)' }}
           />
-          <button type="submit" disabled={loading} style={{ background: '#3b82f6', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '4px', cursor: 'pointer' }}>
+          <button type="submit" disabled={loading} style={{ background: 'var(--accent-indigo)', color: '#ffffff', border: 'none', padding: '8px 14px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600 }}>
             {loading ? 'Searching...' : 'Search'}
           </button>
         </form>
         {showSuggestions && suggestions.length > 0 && (
           <ul style={{ 
             position: 'absolute', top: '100%', left: 0, right: '70px', 
-            background: 'white', border: '1px solid #e2e8f0', borderRadius: '4px', 
+            background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', 
             listStyle: 'none', padding: 0, margin: '4px 0 0 0', 
-            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', zIndex: 50 
+            boxShadow: '0 4px 12px var(--shadow-color)', zIndex: 50 
           }}>
             {suggestions.map((sug, idx) => (
               <li 
@@ -166,9 +166,9 @@ const SearchTab: React.FC<SearchProps> = ({ taskId, onNavigateToTask }) => {
                   setQuery(sug);
                   setShowSuggestions(false);
                 }}
-                style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', borderBottom: idx === suggestions.length - 1 ? 'none' : '1px solid #f1f5f9' }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', color: 'var(--text-primary)', borderBottom: idx === suggestions.length - 1 ? 'none' : '1px solid var(--border-subtle)' }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-card-hover)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-card)'}
               >
                 {sug}
               </li>
@@ -177,10 +177,10 @@ const SearchTab: React.FC<SearchProps> = ({ taskId, onNavigateToTask }) => {
         )}
       </div>
 
-      {error && <p style={{ color: '#ef4444', fontSize: '12px' }}>{error}</p>}
+      {error && <p style={{ color: 'var(--accent-rose)', fontSize: '12px' }}>{error}</p>}
 
       {!loading && !hasResults && query && Object.keys(results).length > 0 && (
-        <p style={{ fontSize: '12px', color: '#64748b' }}>No results found. Try different keywords or a broader question.</p>
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No results found. Try different keywords or a broader question.</p>
       )}
 
       {hasResults && (
@@ -189,7 +189,7 @@ const SearchTab: React.FC<SearchProps> = ({ taskId, onNavigateToTask }) => {
             if (!items || items.length === 0) return null;
             return (
               <div key={type}>
-                <h4 style={{ margin: '0 0 8px 0', color: '#475569', fontSize: '11px', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px' }}>
+                <h4 style={{ margin: '0 0 8px 0', color: 'var(--accent-cyan)', fontSize: '11px', letterSpacing: '0.05em', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '4px' }}>
                   {getSourceDisplay(type)}
                 </h4>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>

@@ -1,24 +1,26 @@
 :root {
-  /* Default: Dark Mode */
+  /* High-Contrast Dark Mode (Default) */
   --bg-primary: #0a0d18;
-  --bg-card: #12182c;
-  --bg-card-hover: #1a223e;
+  --bg-card: #13192c;
+  --bg-card-hover: #1c2540;
   --bg-subtle: #1e293b;
-  --border-color: #273559;
+  --border-color: #334155;
   --border-subtle: #1e293b;
   --accent-cyan: #38bdf8;
-  --accent-cyan-subtle: rgba(56, 189, 248, 0.12);
+  --accent-cyan-subtle: rgba(56, 189, 248, 0.15);
   --accent-indigo: #6366f1;
   --accent-emerald: #10b981;
-  --accent-emerald-subtle: rgba(16, 185, 129, 0.12);
+  --accent-emerald-subtle: rgba(16, 185, 129, 0.15);
   --accent-rose: #f43f5e;
-  --accent-rose-subtle: rgba(244, 63, 94, 0.12);
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
+  --accent-rose-subtle: rgba(244, 63, 94, 0.15);
+  --accent-purple: #c084fc;
+  --accent-purple-subtle: rgba(192, 132, 252, 0.15);
+  --text-primary: #ffffff;
+  --text-secondary: #e2e8f0;
   --text-muted: #94a3b8;
-  --input-bg: #12182c;
-  --input-border: #2d3b66;
-  --shadow-color: rgba(0, 0, 0, 0.5);
+  --input-bg: #0f172a;
+  --input-border: #475569;
+  --shadow-color: rgba(0, 0, 0, 0.6);
   --radius-sm: 6px;
   --radius-md: 10px;
   --font-main: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -26,6 +28,7 @@
 }
 
 [data-theme="light"] {
+  /* High-Contrast Light Mode */
   --bg-primary: #f8fafc;
   --bg-card: #ffffff;
   --bg-card-hover: #f1f5f9;
@@ -33,18 +36,20 @@
   --border-color: #cbd5e1;
   --border-subtle: #e2e8f0;
   --accent-cyan: #0284c7;
-  --accent-cyan-subtle: rgba(2, 132, 199, 0.1);
-  --accent-indigo: #4f46e5;
-  --accent-emerald: #059669;
-  --accent-emerald-subtle: rgba(5, 150, 105, 0.1);
-  --accent-rose: #e11d48;
-  --accent-rose-subtle: rgba(225, 29, 72, 0.1);
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
+  --accent-cyan-subtle: rgba(2, 132, 199, 0.12);
+  --accent-indigo: #4338ca;
+  --accent-emerald: #047857;
+  --accent-emerald-subtle: rgba(4, 120, 87, 0.12);
+  --accent-rose: #be123c;
+  --accent-rose-subtle: rgba(190, 18, 60, 0.12);
+  --accent-purple: #6b21a8;
+  --accent-purple-subtle: rgba(107, 33, 168, 0.12);
+  --text-primary: #020617;
+  --text-secondary: #1e293b;
+  --text-muted: #475569;
   --input-bg: #ffffff;
-  --input-border: #cbd5e1;
-  --shadow-color: rgba(15, 23, 42, 0.08);
+  --input-border: #94a3b8;
+  --shadow-color: rgba(15, 23, 42, 0.1);
 }
 
 * {
@@ -95,7 +100,7 @@ h1 {
   font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.5px;
-  background: linear-gradient(135deg, var(--text-primary) 40%, var(--accent-cyan) 100%);
+  background: linear-gradient(135deg, var(--text-primary) 30%, var(--accent-cyan) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -311,7 +316,7 @@ button {
   margin-top: 12px;
   padding: 8px 12px;
   background: var(--bg-card);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   border: 1px solid var(--border-color);
   font-size: 12px;
 }
@@ -319,7 +324,7 @@ button {
 .sign-out-btn:hover {
   color: var(--text-primary);
   background: var(--bg-card-hover);
-  border-color: var(--text-secondary);
+  border-color: var(--accent-cyan);
 }
 
 .delete-task-btn {
@@ -376,6 +381,24 @@ button {
   height: 1px;
   background: var(--border-color);
   z-index: -1;
+}
+
+/* Sub-sections theme adaptation */
+.themed-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+.themed-card p {
+  color: var(--text-secondary) !important;
+}
+
+.themed-badge {
+  background: var(--accent-purple-subtle) !important;
+  color: var(--accent-purple) !important;
+  border: 1px solid var(--accent-purple) !important;
 }
 
 /* Activity Note */
