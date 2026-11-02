@@ -1,34 +1,5 @@
 :root {
-  /* High-Contrast Dark Mode (Default) */
-  --bg-primary: #0a0d18;
-  --bg-card: #13192c;
-  --bg-card-hover: #1c2540;
-  --bg-subtle: #1e293b;
-  --border-color: #334155;
-  --border-subtle: #1e293b;
-  --accent-cyan: #38bdf8;
-  --accent-cyan-subtle: rgba(56, 189, 248, 0.15);
-  --accent-indigo: #6366f1;
-  --accent-emerald: #10b981;
-  --accent-emerald-subtle: rgba(16, 185, 129, 0.15);
-  --accent-rose: #f43f5e;
-  --accent-rose-subtle: rgba(244, 63, 94, 0.15);
-  --accent-purple: #c084fc;
-  --accent-purple-subtle: rgba(192, 132, 252, 0.15);
-  --text-primary: #ffffff;
-  --text-secondary: #e2e8f0;
-  --text-muted: #94a3b8;
-  --input-bg: #0f172a;
-  --input-border: #475569;
-  --shadow-color: rgba(0, 0, 0, 0.6);
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --font-main: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-}
-
-[data-theme="light"] {
-  /* High-Contrast Light Mode */
+  /* High-Contrast Light Mode (Default) */
   --bg-primary: #f8fafc;
   --bg-card: #ffffff;
   --bg-card-hover: #f1f5f9;
@@ -50,6 +21,35 @@
   --input-bg: #ffffff;
   --input-border: #94a3b8;
   --shadow-color: rgba(15, 23, 42, 0.1);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --font-main: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+[data-theme="dark"] {
+  /* High-Contrast Dark Mode */
+  --bg-primary: #0a0d18;
+  --bg-card: #13192c;
+  --bg-card-hover: #1c2540;
+  --bg-subtle: #1e293b;
+  --border-color: #334155;
+  --border-subtle: #1e293b;
+  --accent-cyan: #38bdf8;
+  --accent-cyan-subtle: rgba(56, 189, 248, 0.15);
+  --accent-indigo: #6366f1;
+  --accent-emerald: #10b981;
+  --accent-emerald-subtle: rgba(16, 185, 129, 0.15);
+  --accent-rose: #f43f5e;
+  --accent-rose-subtle: rgba(244, 63, 94, 0.15);
+  --accent-purple: #c084fc;
+  --accent-purple-subtle: rgba(192, 132, 252, 0.15);
+  --text-primary: #ffffff;
+  --text-secondary: #e2e8f0;
+  --text-muted: #94a3b8;
+  --input-bg: #0f172a;
+  --input-border: #475569;
+  --shadow-color: rgba(0, 0, 0, 0.6);
 }
 
 * {

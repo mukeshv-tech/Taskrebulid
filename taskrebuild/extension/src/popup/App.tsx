@@ -40,21 +40,22 @@ const App: React.FC = () => {
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
   const [lockChecked, setLockChecked] = useState<boolean>(false);
   const [showLockSettings, setShowLockSettings] = useState<boolean>(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
 
   useEffect(() => {
-    // Load theme preference from storage
+    // Force default to light mode unless explicitly set otherwise
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
       chrome.storage.local.get(['app_theme'], (res) => {
-        if (res.app_theme === 'light' || res.app_theme === 'dark') {
-          setTheme(res.app_theme);
-          document.documentElement.setAttribute('data-theme', res.app_theme);
-        } else {
+        if (res.app_theme === 'dark') {
+          setTheme('dark');
           document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+          setTheme('light');
+          document.documentElement.setAttribute('data-theme', 'light');
         }
       });
     } else {
-      document.documentElement.setAttribute('data-theme', 'dark');
+      document.documentElement.setAttribute('data-theme', 'light');
     }
   }, []);
 
