@@ -1,20 +1,50 @@
 :root {
-  --bg-primary: #070913;
-  --bg-card: #0e1326;
-  --bg-card-hover: #151d38;
+  /* Default: Dark Mode */
+  --bg-primary: #0a0d18;
+  --bg-card: #12182c;
+  --bg-card-hover: #1a223e;
   --bg-subtle: #1e293b;
-  --border-color: #1f2b4d;
+  --border-color: #273559;
+  --border-subtle: #1e293b;
   --accent-cyan: #38bdf8;
+  --accent-cyan-subtle: rgba(56, 189, 248, 0.12);
   --accent-indigo: #6366f1;
   --accent-emerald: #10b981;
+  --accent-emerald-subtle: rgba(16, 185, 129, 0.12);
   --accent-rose: #f43f5e;
+  --accent-rose-subtle: rgba(244, 63, 94, 0.12);
   --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --input-bg: #12182c;
+  --input-border: #2d3b66;
+  --shadow-color: rgba(0, 0, 0, 0.5);
   --radius-sm: 6px;
   --radius-md: 10px;
   --font-main: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+}
+
+[data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --bg-subtle: #e2e8f0;
+  --border-color: #cbd5e1;
+  --border-subtle: #e2e8f0;
+  --accent-cyan: #0284c7;
+  --accent-cyan-subtle: rgba(2, 132, 199, 0.1);
+  --accent-indigo: #4f46e5;
+  --accent-emerald: #059669;
+  --accent-emerald-subtle: rgba(5, 150, 105, 0.1);
+  --accent-rose: #e11d48;
+  --accent-rose-subtle: rgba(225, 29, 72, 0.1);
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --shadow-color: rgba(15, 23, 42, 0.08);
 }
 
 * {
@@ -32,6 +62,7 @@ body {
   color: var(--text-primary);
   line-height: 1.5;
   overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -64,7 +95,7 @@ h1 {
   font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.5px;
-  background: linear-gradient(135deg, #ffffff 40%, var(--accent-cyan) 100%);
+  background: linear-gradient(135deg, var(--text-primary) 40%, var(--accent-cyan) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -106,6 +137,27 @@ p {
   overflow-wrap: break-word;
 }
 
+/* Theme Toggle Button */
+.theme-toggle-btn {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.theme-toggle-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-cyan);
+  background: var(--bg-card-hover);
+}
+
 /* Cards & Containers */
 .status-section {
   display: flex;
@@ -115,6 +167,7 @@ p {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
+  box-shadow: 0 2px 6px var(--shadow-color);
 }
 
 .status-label {
@@ -132,7 +185,7 @@ p {
   gap: 6px;
 }
 
-/* Form Inputs */
+/* Form Inputs with High Contrast */
 input[type="text"],
 input[type="email"],
 input[type="password"],
@@ -140,8 +193,8 @@ textarea,
 select {
   width: 100%;
   padding: 8px 12px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: 13px;
@@ -149,12 +202,17 @@ select {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+}
+
 input:focus,
 textarea:focus,
 select:focus {
   outline: none;
   border-color: var(--accent-cyan);
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+  box-shadow: 0 0 0 2px var(--accent-cyan-subtle);
 }
 
 /* Buttons */
@@ -171,7 +229,7 @@ button {
 .btn-primary {
   padding: 9px 14px;
   background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
-  color: #ffffff;
+  color: #ffffff !important;
   font-size: 13px;
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
 }
@@ -209,12 +267,14 @@ button {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-color);
   font-size: 13px;
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px var(--shadow-color);
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .task-list li:hover {
   background: var(--bg-card-hover);
-  border-color: rgba(56, 189, 248, 0.4);
+  border-color: var(--accent-cyan);
 }
 
 .task-list li button {
@@ -227,7 +287,7 @@ button {
 
 .task-list li button:hover {
   color: var(--accent-rose);
-  background: rgba(244, 63, 94, 0.1);
+  background: var(--accent-rose-subtle);
 }
 
 .back-btn {
@@ -258,22 +318,22 @@ button {
 
 .sign-out-btn:hover {
   color: var(--text-primary);
-  background: var(--bg-subtle);
-  border-color: #334155;
+  background: var(--bg-card-hover);
+  border-color: var(--text-secondary);
 }
 
 .delete-task-btn {
   margin-top: 20px;
   padding: 9px;
-  background: rgba(244, 63, 94, 0.12);
+  background: var(--accent-rose-subtle);
   color: var(--accent-rose);
-  border: 1px solid rgba(244, 63, 94, 0.3);
+  border: 1px solid var(--accent-rose);
   font-size: 12px;
   width: 100%;
 }
 
 .delete-task-btn:hover {
-  background: rgba(244, 63, 94, 0.2);
+  filter: brightness(1.15);
 }
 
 /* OAuth & Auth styling */

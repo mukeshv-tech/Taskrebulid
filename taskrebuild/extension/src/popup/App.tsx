@@ -40,6 +40,32 @@ const App: React.FC = () => {
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
   const [lockChecked, setLockChecked] = useState<boolean>(false);
   const [showLockSettings, setShowLockSettings] = useState<boolean>(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  useEffect(() => {
+    // Load theme preference from storage
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.get(['app_theme'], (res) => {
+        if (res.app_theme === 'light' || res.app_theme === 'dark') {
+          setTheme(res.app_theme);
+          document.documentElement.setAttribute('data-theme', res.app_theme);
+        } else {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      });
+    } else {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    document.documentElement.setAttribute('data-theme', nextTheme);
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ app_theme: nextTheme });
+    }
+  };
 
   const handleSaveLock = (newSalt: string, newHash: string, newBioId?: string | null) => {
     setLockSalt(newSalt);
@@ -528,30 +554,35 @@ const App: React.FC = () => {
     const isActive = activeTaskId === selectedTask.id;
     return (
       <div className="popup-container">
-        <button className="back-btn" onClick={() => selectTask(null)}>← Back to tasks</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <button className="back-btn" onClick={() => selectTask(null)}>← Back to tasks</button>
+          <button className="theme-toggle-btn" onClick={toggleTheme} title="Toggle Dark/Light Mode">
+            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+          </button>
+        </div>
         <h2>📁 {selectedTask.name}</h2>
-        <p style={{ fontSize: '12px', color: '#6b7280' }}>
+        <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
           Created: {new Date(selectedTask.created_at).toLocaleDateString('en-US')}
         </p>
         
-        <div style={{ marginBottom: '15px', padding: '10px', background: isActive ? '#ecfdf5' : '#f9fafb', borderRadius: '4px', border: isActive ? '1px solid #10b981' : '1px solid #e5e7eb' }}>
+        <div style={{ marginBottom: '15px', padding: '12px', background: isActive ? 'var(--accent-emerald-subtle)' : 'var(--bg-card)', borderRadius: '8px', border: isActive ? '1px solid var(--accent-emerald)' : '1px solid var(--border-color)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <strong>Status: </strong> 
               {isActive ? (
-                <span style={{ color: '#10b981' }}>● Active</span>
+                <span style={{ color: 'var(--accent-emerald)', fontWeight: 700 }}>● Active</span>
               ) : (
-                <span style={{ color: '#6b7280' }}>Inactive</span>
+                <span style={{ color: 'var(--text-muted)' }}>Inactive</span>
               )}
             </div>
             <button 
               onClick={() => toggleTaskActive(selectedTask)}
-              style={{ background: isActive ? '#ef4444' : '#10b981', color: 'white' }}
+              style={{ background: isActive ? 'var(--accent-rose)' : 'var(--accent-emerald)', color: '#ffffff', padding: '6px 12px', borderRadius: '6px' }}
             >
               {isActive ? 'Stop Task' : 'Start Task'}
             </button>
           </div>
-          <p style={{ fontSize: '11px', marginTop: '5px', color: '#6b7280' }}>
+          <p style={{ fontSize: '12px', marginTop: '6px', color: 'var(--text-muted)' }}>
             {isActive 
               ? "TaskRebuild is recording browser tab activity for this active task." 
               : "Browser activity is not being recorded."}
@@ -732,36 +763,39 @@ const App: React.FC = () => {
     <div className="popup-container">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1 style={{ margin: 0 }}>TaskRebuild</h1>
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <button className="theme-toggle-btn" onClick={toggleTheme} title="Toggle Dark/Light Mode">
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
           <button
             onClick={() => setShowLockSettings(true)}
             style={{
-              background: '#f1f5f9',
-              border: '1px solid #cbd5e1',
-              borderRadius: '4px',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-sm)',
               padding: '4px 8px',
               fontSize: '11px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '4px',
-              color: '#334155'
+              color: 'var(--text-secondary)'
             }}
             title="App Lock Settings"
           >
-            <span>{lockHash ? '🔒 Lock Config' : '🔓 Set Password'}</span>
+            <span>{lockHash ? '🔒 Lock' : '🔓 Password'}</span>
           </button>
           {lockHash && (
             <button
               onClick={handleLockNow}
               style={{
-                background: '#e0e7ff',
-                border: '1px solid #c7d2fe',
-                borderRadius: '4px',
+                background: 'var(--accent-indigo)',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
                 padding: '4px 8px',
                 fontSize: '11px',
                 cursor: 'pointer',
-                color: '#4338ca',
+                color: '#ffffff',
                 fontWeight: 600
               }}
               title="Lock Extension Now"
@@ -771,19 +805,19 @@ const App: React.FC = () => {
           )}
         </div>
       </div>
-      <p>Signed in as: <br/><strong>{session.user.email}</strong></p>
+      <p style={{ color: 'var(--text-muted)' }}>Signed in as: <br/><strong style={{ color: 'var(--text-primary)' }}>{session.user.email}</strong></p>
       
-      <div style={{ padding: '10px', background: activeTaskId ? '#ecfdf5' : '#f9fafb', borderRadius: '4px', border: activeTaskId ? '1px solid #10b981' : '1px solid #e5e7eb', marginBottom: '15px' }}>
+      <div style={{ padding: '12px', background: activeTaskId ? 'var(--accent-emerald-subtle)' : 'var(--bg-card)', borderRadius: 'var(--radius-md)', border: activeTaskId ? '1px solid var(--accent-emerald)' : '1px solid var(--border-color)', marginBottom: '15px', boxShadow: '0 2px 6px var(--shadow-color)' }}>
         <h4 style={{ margin: '0 0 5px 0' }}>Current Task</h4>
         {activeTaskId ? (
           <div>
-            <span style={{ color: '#10b981', fontWeight: 'bold' }}>● {activeTaskName}</span>
-            <p style={{ fontSize: '11px', margin: '5px 0 0 0', color: '#6b7280' }}>Recording browser tab activity.</p>
-            <button onClick={() => toggleTaskActive({ id: activeTaskId })} style={{ marginTop: '10px', background: '#ef4444', color: 'white', fontSize: '12px' }}>Stop Task</button>
+            <span style={{ color: 'var(--accent-emerald)', fontWeight: 'bold' }}>● {activeTaskName}</span>
+            <p style={{ fontSize: '11px', margin: '5px 0 0 0', color: 'var(--text-muted)' }}>Recording browser tab activity.</p>
+            <button onClick={() => toggleTaskActive({ id: activeTaskId })} style={{ marginTop: '10px', background: 'var(--accent-rose)', color: 'white', fontSize: '12px', padding: '6px 12px', borderRadius: '4px' }}>Stop Task</button>
           </div>
         ) : (
           <div>
-            <p style={{ margin: 0, fontSize: '12px' }}>No active task. Select a task to begin tracking.</p>
+            <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)' }}>No active task. Select a task to begin tracking.</p>
           </div>
         )}
       </div>
