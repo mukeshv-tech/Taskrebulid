@@ -222,3 +222,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 });
+
+// Command listener for keyboard shortcuts (e.g. Alt+Shift+C)
+chrome.commands.onCommand.addListener((command) => {
+  if (command === 'quick-capture') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        chrome.tabs.sendMessage(tabs[0].id, { action: 'TRIGGER_QUICK_CAPTURE' }).catch(() => {
+          // Tab may not have content script injected (e.g. chrome:// or restricted pages)
+          console.log('Could not trigger quick capture on active tab');
+        });
+      }
+    });
+  }
+});

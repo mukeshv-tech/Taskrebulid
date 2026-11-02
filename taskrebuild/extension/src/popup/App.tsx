@@ -158,6 +158,7 @@ const App: React.FC = () => {
     });
 
     return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSessionSetup = (session: any, fromExplicitLogin: boolean = false) => {

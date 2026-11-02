@@ -73,9 +73,8 @@ const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ taskId }) => {
 
 
   useEffect(() => {
-
     fetchResources();
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId]);
 
 

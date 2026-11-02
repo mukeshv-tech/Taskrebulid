@@ -32,6 +32,7 @@ export const AppLockScreen: React.FC<AppLockScreenProps> = ({
         handleBiometricUnlock(biometricCredentialId);
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [biometricCredentialId]);
 
   const handleBiometricUnlock = async (credIdToUse?: string) => {

@@ -77,6 +77,7 @@ export const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ taskId, taskName }) 
 
   useEffect(() => {
     fetchItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterType, filterStatus, scopeToTask, taskId]);
 
   // Realtime subscription for knowledge items (scoped to current user and active task scope)
@@ -128,6 +129,7 @@ export const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ taskId, taskName }) 
         supabase.removeChannel(channel);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId, scopeToTask]);
 
   const loadDetail = async (id: string) => {

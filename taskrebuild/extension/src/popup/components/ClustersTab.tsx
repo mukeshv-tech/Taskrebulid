@@ -43,6 +43,7 @@ const ClustersTab: React.FC<ClustersTabProps> = ({ taskId }) => {
 
   useEffect(() => {
     loadClusters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId]);
 
   return (

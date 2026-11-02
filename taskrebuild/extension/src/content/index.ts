@@ -558,4 +558,15 @@
     if (hostElement && (path.includes(hostElement) || hostElement.contains(e.target as Node))) return;
     hideAll();
   });
+
+  // Listen for background messages (e.g. keyboard shortcut trigger)
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.action === 'TRIGGER_QUICK_CAPTURE') {
+      const selection = window.getSelection();
+      const text = selection ? selection.toString().trim() : '';
+      currentSelectedText = text;
+      initHost();
+      openModal();
+    }
+  });
 })();

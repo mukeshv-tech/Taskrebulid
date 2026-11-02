@@ -45,6 +45,7 @@ const ResumeSection: React.FC<ResumeSectionProps> = ({ taskId }) => {
 
   useEffect(() => {
     fetchResume();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId]);
 
   const handleRefresh = async () => {

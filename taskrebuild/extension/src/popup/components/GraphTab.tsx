@@ -50,6 +50,7 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
 
   useEffect(() => {
     loadGraph();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId]);
 
   const handleAnalyzeGraph = async () => {
