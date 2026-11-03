@@ -75,9 +75,35 @@ jobs:
           echo "Syncing code branches and tags to Codeberg with prune..."
           git remote add codeberg "https://mukeshv-tech:${CODEBERG_TOKEN}@codeberg.org/mukeshv-tech/taskrebulid.git/"
           
-          # Push remote-tracking branches and tags, pruning stale deleted branches from Codeberg
-          git push --prune --force codeberg "+refs/remotes/origin/*:refs/heads/*"
-          git push --tags codeberg
+          # Configure buffer, timeout, and compression settings to avoid HTTP 504 gateway timeout on Forgejo/Codeberg
+          git config http.postBuffer 524288000
+          git config http.lowSpeedLimit 1000
+          git config http.lowSpeedTime 60
+          git config core.compression 0
+          
+          # Push with automatic retry on temporary 502/504 gateway timeouts
+          for attempt in 1 2 3; do
+            echo "Pushing branches to Codeberg (attempt $attempt)..."
+            if git push --prune --force codeberg "+refs/remotes/origin/*:refs/heads/*"; then
+              echo "Branches push succeeded."
+              break
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Push failed with network/server error. Waiting 15s before retry..."
+              sleep 15
+            else
+              echo "::warning::Codeberg branch sync encountered gateway timeout after 3 attempts."
+            fi
+          done
+
+          # Push tags with retry
+          for attempt in 1 2; do
+            echo "Pushing tags to Codeberg (attempt $attempt)..."
+            if git push --tags codeberg; then
+              break
+            fi
+            sleep 5
+          done
 
           # Handle explicit branch deletion event
           if [ "${{ github.event_name }}" = "delete" ] && [ "${{ github.event.ref_type }}" = "branch" ]; then
