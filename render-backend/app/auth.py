@@ -2,6 +2,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.supabase import get_supabase
 import logging
+import os
 import time
 
 security = HTTPBearer()
@@ -17,8 +18,14 @@ CACHE_TTL_SECONDS = 300
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     
-    if token == "PASTE_YOUR_USER_JWT_HERE":
-        return DummyUser(id="c96c1bfb-3c54-4400-b162-22e2eb5d5220", email="mukesh.v@globalschoolsalumni.org")
+    # Allow mock development token strictly when DEBUG or DEV_MODE is enabled in environment
+    is_dev = os.getenv("DEBUG", "").lower() in ("true", "1") or os.getenv("ENVIRONMENT", "").lower() == "development"
+    dev_dummy_token = os.getenv("DEV_MOCK_JWT")
+    if is_dev and dev_dummy_token and token == dev_dummy_token:
+        return DummyUser(
+            id=os.getenv("DEV_MOCK_USER_ID", "c96c1bfb-3c54-4400-b162-22e2eb5d5220"),
+            email=os.getenv("DEV_MOCK_USER_EMAIL", "developer@example.com")
+        )
         
     now = time.time()
     if token in _TOKEN_CACHE:

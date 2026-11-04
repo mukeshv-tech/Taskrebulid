@@ -1,0 +1,6 @@
+name: "CodeQL config"
+
+paths-ignore:
+  - "render-backend/app/static/**"
+  - "**/dist/**"
+  - "**/node_modules/**"
