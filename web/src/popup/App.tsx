@@ -127,6 +127,16 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    // 0. Instant localStorage hydrate for Desktop
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const cached = window.localStorage.getItem('cachedTasks');
+      if (cached) {
+        try { setTasks(JSON.parse(cached)); } catch(e) {}
+      }
+      setLockChecked(true);
+      setIsUnlocked(true);
+    }
+
     // 1. First restore session from chrome.storage.local if available
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
       chrome.storage.local.get(['supabase-session', 'activeTaskId', 'activeTaskName', 'app_lock_salt', 'app_lock_hash', 'app_lock_bio_id'], async (result) => {
