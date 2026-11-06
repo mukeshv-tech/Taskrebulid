@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "cloudflare-computer": {
+      "url": "https://computer-mcp.mukesh-v.workers.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer 10f0c2f9978205b4f6e6ebcfca1dfbc33064d7859bc50ade"
+      }
+    }
+  }
+}

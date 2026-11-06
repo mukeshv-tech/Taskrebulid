@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 
 interface AuthProps {
   onSession: (session: any) => void;
@@ -13,14 +15,56 @@ const Auth: React.FC<AuthProps> = ({ onSession }) => {
   const [error, setError] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
 
+  useEffect(() => {
+    // Listen for OAuth callbacks emitted from Tauri's embedded auth window
+    let unlistenFn: (() => void) | undefined;
+    
+    listen<string>('oauth-callback', async (event) => {
+      try {
+        const fullUrl = event.payload;
+        // Parse hash params (#access_token=...&refresh_token=...)
+        const hashIndex = fullUrl.indexOf('#');
+        if (hashIndex !== -1) {
+          const hashParams = new URLSearchParams(fullUrl.substring(hashIndex + 1));
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+
+          if (accessToken && refreshToken) {
+            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            if (sessionError) throw sessionError;
+            if (sessionData.session) {
+              onSession(sessionData.session);
+            }
+          }
+        }
+      } catch (err: any) {
+        console.error('Failed to parse desktop oauth callback:', err);
+        setError(err.message || 'Failed to authenticate via desktop window');
+      } finally {
+        setLoading(false);
+      }
+    }).then((cleanup) => {
+      unlistenFn = cleanup;
+    }).catch(() => {});
+
+    return () => {
+      if (unlistenFn) unlistenFn();
+    };
+  }, [onSession]);
+
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
       setError('');
       
       const hasChromeIdentity = typeof chrome !== 'undefined' && chrome.identity && chrome.identity.launchWebAuthFlow;
-      
+      const isTauri = typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window);
+
       if (hasChromeIdentity) {
+        // Chrome Extension flow
         const redirectUrl = chrome.identity.getRedirectURL();
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
@@ -65,8 +109,25 @@ const Auth: React.FC<AuthProps> = ({ onSession }) => {
             setLoading(false);
           }
         );
+      } else if (isTauri) {
+        // Standalone Desktop App Flow: Embedded OAuth Window
+        // Use Supabase's hosted site URL or onrender callback
+        const redirectUrl = 'https://taskrebulid.onrender.com/auth/callback';
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: redirectUrl,
+            skipBrowserRedirect: true,
+          },
+        });
+
+        if (error) throw error;
+        if (!data?.url) throw new Error('No URL returned from Supabase');
+
+        // Open child WebView window to authenticate
+        await invoke('open_oauth_window', { authUrl: data.url });
       } else {
-        // Desktop / Web Environment OAuth
+        // Standard Web browser fallback
         const { error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
