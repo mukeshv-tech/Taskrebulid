@@ -154,14 +154,14 @@ export const App: React.FC = () => {
       {/* Hero Section */}
       <section className="container hero">
         <div className="hero-tag">
-          Research workspace and knowledge capture
+          Research tracker and note library
         </div>
         <h1>
           Save browser research to a <br />
-          structured <span>knowledge graph</span>
+          searchable <span>node graph</span>
         </h1>
         <p>
-          TaskRebuild records open tabs and pages during a task, groups related topics, creates node graphs with Gemini, and keeps searchable notes that persist after closing tabs.
+          TaskRebuild logs open tabs by task, groups related links, builds relationship graphs, and keeps notes queryable after you close the browser.
         </p>
 
         <div className="hero-actions">
@@ -171,7 +171,7 @@ export const App: React.FC = () => {
             rel="noreferrer"
             className="btn-primary"
           >
-            Download Chrome extension
+            Install extension
           </a>
           <a
             href="https://taskrebulid.onrender.com/docs"
@@ -179,7 +179,7 @@ export const App: React.FC = () => {
             rel="noreferrer"
             className="btn-secondary"
           >
-            View API docs
+            API docs
           </a>
         </div>
       </section>
@@ -187,39 +187,39 @@ export const App: React.FC = () => {
       {/* Feature Grid */}
       <section id="features" className="container features-section">
         <div className="section-title">
-          <h2>Core capabilities</h2>
-          <p>Organize visited pages, extracted concepts, and background notes by task.</p>
+          <h2>Features</h2>
+          <p>Tools to collect, index, and query web research.</p>
         </div>
 
         <div className="feature-grid">
           <div className="feature-card">
-            <h3>Personal knowledge library</h3>
-            <p>Save notes, concepts, and page excerpts into items linked to your active task.</p>
+            <h3>Notes</h3>
+            <p>Save notes and page excerpts tied to your active task.</p>
           </div>
 
           <div className="feature-card">
-            <h3>Knowledge graph</h3>
-            <p>Maps tasks, pages, and extracted concepts into nodes and edges using Gemini 3.1 Pro.</p>
+            <h3>Graph</h3>
+            <p>Map tasks, pages, and concepts into nodes and edges using Gemini 3.1 Pro.</p>
           </div>
 
           <div className="feature-card">
             <h3>Hybrid search</h3>
-            <p>Runs reciprocal rank fusion across 3,072-dimensional pgvector embeddings and PostgreSQL trigram text indexes.</p>
+            <p>Combines 3,072-dimension pgvector embeddings with PostgreSQL trigram search via reciprocal rank fusion.</p>
           </div>
 
           <div className="feature-card">
-            <h3>Learning paths</h3>
-            <p>Generates ordered Markdown guides with prerequisites from your graph relationships.</p>
+            <h3>Markdown paths</h3>
+            <p>Exports graph relationships as ordered Markdown files with prerequisites.</p>
           </div>
 
           <div className="feature-card">
-            <h3>Link monitor</h3>
-            <p>Scheduled background workers check for broken URLs, 404 responses, and failed SSL certificates.</p>
+            <h3>URL health check</h3>
+            <p>Runs scheduled checks on saved links for 404 responses and TLS errors.</p>
           </div>
 
           <div className="feature-card">
-            <h3>Row-level security</h3>
-            <p>Supabase row-level security isolates all tables by authenticated user id.</p>
+            <h3>Per-user isolation</h3>
+            <p>PostgreSQL row-level security scopes all table queries to your Supabase auth id.</p>
           </div>
         </div>
       </section>
@@ -228,28 +228,28 @@ export const App: React.FC = () => {
       <section id="architecture" className="architecture-section">
         <div className="container">
           <div className="section-title">
-            <h2>System architecture</h2>
-            <p>The system connects a browser client to a FastAPI service, an AI provider, and a PostgreSQL database.</p>
+            <h2>Architecture</h2>
+            <p>Data moves from the browser extension to FastAPI, then persists in PostgreSQL.</p>
           </div>
 
           <div className="arch-boxes">
             <div className="arch-box">
-              <h4>Chrome extension</h4>
-              <p>React 18 popup with tab listeners and local storage sync.</p>
+              <h4>Browser extension</h4>
+              <p>React 18 interface with background service worker tab listeners.</p>
             </div>
 
             <div className="arch-arrow">→</div>
 
             <div className="arch-box">
               <h4>FastAPI service</h4>
-              <p>Python 3.14 async API handling search, graph analysis, and AI routing.</p>
+              <p>Async API for search indexing, graph generation, and AI routing.</p>
             </div>
 
             <div className="arch-arrow">→</div>
 
             <div className="arch-box">
-              <h4>PostgreSQL database</h4>
-              <p>Supabase instance with pgvector, trigram indexes, and row-level security.</p>
+              <h4>PostgreSQL</h4>
+              <p>Supabase database with pgvector, trigrams, and row-level security.</p>
             </div>
           </div>
 
@@ -262,7 +262,7 @@ export const App: React.FC = () => {
         <div className="container">
           <p>© 2026 TaskRebuild. MIT License.</p>
           <p style={{ marginTop: '6px' }}>
-            Built with React, FastAPI, Supabase, and Gemini. Deployed on <a href="https://taskrebulid.onrender.com/docs" target="_blank" rel="noreferrer">Render</a>.
+            Built with React, FastAPI, Supabase, and Gemini. Hosted on <a href="https://taskrebulid.onrender.com/docs" target="_blank" rel="noreferrer">Render</a>.
           </p>
         </div>
       </footer>
