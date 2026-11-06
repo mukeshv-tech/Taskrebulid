@@ -130,13 +130,13 @@ export const App: React.FC = () => {
       <header className="container">
         <nav className="navbar">
           <div className="logo">
-            <span>🧠 TaskRebuild</span>
-            <span className="logo-badge">v2.0 • Phase 9</span>
+            <span>TaskRebuild</span>
+            <span className="logo-badge">v2.0</span>
           </div>
           <ul className="nav-links">
             <li><a href="#features">Features</a></li>
             <li><a href="#architecture">Architecture</a></li>
-            <li><a href="https://taskrebulid.onrender.com/docs" target="_blank" rel="noreferrer">API Docs</a></li>
+            <li><a href="https://taskrebulid.onrender.com/docs" target="_blank" rel="noreferrer">API docs</a></li>
             <li>
               <a
                 href="https://github.com/mukeshv-tech/Taskrebulid"
@@ -144,7 +144,7 @@ export const App: React.FC = () => {
                 rel="noreferrer"
                 className="btn-secondary"
               >
-                GitHub Repo ↗
+                GitHub
               </a>
             </li>
           </ul>
@@ -154,14 +154,14 @@ export const App: React.FC = () => {
       {/* Hero Section */}
       <section className="container hero">
         <div className="hero-tag">
-          ✨ Turn Transient Browsing Into Persistent Personal Knowledge
+          Research workspace and knowledge capture
         </div>
         <h1>
-          The Knowledge Operating System <br />
-          for Your <span>Browser Research</span>
+          Save browser research to a <br />
+          structured <span>knowledge graph</span>
         </h1>
         <p>
-          TaskRebuild tracks active tasks, clusters sub-task research, synthesizes knowledge graphs with Gemini AI, and preserves provenanced personal knowledge that never disappears when you close a tab.
+          TaskRebuild records open tabs and pages during a task, groups related topics, creates node graphs with Gemini, and keeps searchable notes that persist after closing tabs.
         </p>
 
         <div className="hero-actions">
@@ -171,7 +171,7 @@ export const App: React.FC = () => {
             rel="noreferrer"
             className="btn-primary"
           >
-            📦 Download Chrome Extension
+            Download Chrome extension
           </a>
           <a
             href="https://taskrebulid.onrender.com/docs"
@@ -179,7 +179,7 @@ export const App: React.FC = () => {
             rel="noreferrer"
             className="btn-secondary"
           >
-            Explore API Docs ↗
+            View API docs
           </a>
         </div>
       </section>
@@ -187,45 +187,39 @@ export const App: React.FC = () => {
       {/* Feature Grid */}
       <section id="features" className="container features-section">
         <div className="section-title">
-          <h2>Engineered for Deep Research</h2>
-          <p>TaskRebuild bridges the gap between scattered browser tabs and reusable intelligence.</p>
+          <h2>Core capabilities</h2>
+          <p>Organize visited pages, extracted concepts, and background notes by task.</p>
         </div>
 
         <div className="feature-grid">
           <div className="feature-card">
-            <div className="feature-icon">🧠</div>
-            <h3>Personal Knowledge System</h3>
-            <p>Turn transient browser tabs and AI summaries into reusable concepts, notes, and topics. Preserves provenance and links across projects.</p>
+            <h3>Personal knowledge library</h3>
+            <p>Save notes, concepts, and page excerpts into items linked to your active task.</p>
           </div>
 
           <div className="feature-card">
-            <div className="feature-icon">🕸️</div>
-            <h3>Dynamic Knowledge Graph</h3>
-            <p>Automatically maps tasks, visited pages, and extracted concepts into a connected node-edge network powered by Gemini 3.1 Pro.</p>
+            <h3>Knowledge graph</h3>
+            <p>Maps tasks, pages, and extracted concepts into nodes and edges using Gemini 3.1 Pro.</p>
           </div>
 
           <div className="feature-card">
-            <div className="feature-icon">🔍</div>
-            <h3>3072-Dim RRF Search</h3>
-            <p>Hybrid semantic and full-text search combining PostgreSQL pgvector and trigrams via Reciprocal Rank Fusion.</p>
+            <h3>Hybrid search</h3>
+            <p>Runs reciprocal rank fusion across 3,072-dimensional pgvector embeddings and PostgreSQL trigram text indexes.</p>
           </div>
 
           <div className="feature-card">
-            <div className="feature-icon">📚</div>
-            <h3>Auto-Documentation</h3>
-            <p>Transforms raw research graph nodes and edges into structured, sequenced Markdown learning paths with prerequisite mappings.</p>
+            <h3>Learning paths</h3>
+            <p>Generates ordered Markdown guides with prerequisites from your graph relationships.</p>
           </div>
 
           <div className="feature-card">
-            <div className="feature-icon">🛡️</div>
-            <h3>Self-Healing Workspaces</h3>
-            <p>Automated cron worker monitors dead links, 404s, and SSL failures, using AI to suggest replacement references.</p>
+            <h3>Link monitor</h3>
+            <p>Scheduled background workers check for broken URLs, 404 responses, and failed SSL certificates.</p>
           </div>
 
           <div className="feature-card">
-            <div className="feature-icon">🔒</div>
-            <h3>Strict Privacy & RLS</h3>
-            <p>All data is bound to your authenticated Supabase identity. Database-level Row Level Security guarantees complete isolation.</p>
+            <h3>Row-level security</h3>
+            <p>Supabase row-level security isolates all tables by authenticated user id.</p>
           </div>
         </div>
       </section>
@@ -234,28 +228,28 @@ export const App: React.FC = () => {
       <section id="architecture" className="architecture-section">
         <div className="container">
           <div className="section-title">
-            <h2>Three-Tier Scalable Architecture</h2>
-            <p>From client-side Chrome storage to asynchronous FastAPI workers, Gemini AI orchestration, and Supabase pgvector.</p>
+            <h2>System architecture</h2>
+            <p>The system connects a browser client to a FastAPI service, an AI provider, and a PostgreSQL database.</p>
           </div>
 
           <div className="arch-boxes">
             <div className="arch-box">
-              <h4>Chrome Extension (Vite)</h4>
-              <p>React 18 + TypeScript popup, live tab listener, background service worker & local storage sync.</p>
+              <h4>Chrome extension</h4>
+              <p>React 18 popup with tab listeners and local storage sync.</p>
             </div>
 
             <div className="arch-arrow">→</div>
 
             <div className="arch-box">
-              <h4>Render FastAPI Backend</h4>
-              <p>Python 3.14 async API, Gemini 3.1 Pro Low & Groq fallbacks, and task clustering engines.</p>
+              <h4>FastAPI service</h4>
+              <p>Python 3.14 async API handling search, graph analysis, and AI routing.</p>
             </div>
 
             <div className="arch-arrow">→</div>
 
             <div className="arch-box">
-              <h4>Supabase PostgreSQL</h4>
-              <p>pgvector (3072-dim), Row Level Security (RLS), Trigrams, and HNSW cosine similarity search.</p>
+              <h4>PostgreSQL database</h4>
+              <p>Supabase instance with pgvector, trigram indexes, and row-level security.</p>
             </div>
           </div>
 
@@ -266,9 +260,9 @@ export const App: React.FC = () => {
       {/* Footer */}
       <footer>
         <div className="container">
-          <p>© 2026 TaskRebuild. Open source under the MIT License.</p>
+          <p>© 2026 TaskRebuild. MIT License.</p>
           <p style={{ marginTop: '6px' }}>
-            Built with React, FastAPI, Supabase, and Gemini AI. Hosted on <a href="https://taskrebulid.onrender.com/docs" target="_blank" rel="noreferrer">Render</a>.
+            Built with React, FastAPI, Supabase, and Gemini. Deployed on <a href="https://taskrebulid.onrender.com/docs" target="_blank" rel="noreferrer">Render</a>.
           </p>
         </div>
       </footer>
