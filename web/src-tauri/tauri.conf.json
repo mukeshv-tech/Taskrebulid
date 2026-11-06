@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "url": "index.html",
+        "url": "app.html",
         "title": "TaskRebuild Desktop",
         "width": 1280,
         "height": 820,

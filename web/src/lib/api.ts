@@ -2,23 +2,30 @@ import { supabase } from './supabase';
 
 export const getApiBaseUrl = () => 'https://taskrebulid.onrender.com';
 
-export const fetchApi = async (endpoint: string, options: RequestInit = {}) => {
-  const url = `${getApiBaseUrl()}${endpoint}`;
-  
-  let token = '';
-  
-  // 1. Try supabase auth client session first
+/**
+ * Returns a valid, non-expired Supabase access token.
+ * Refreshes session proactively if it is expired or close to expiring.
+ */
+export const getValidAccessToken = async (): Promise<string> => {
   try {
-    const { data } = await supabase.auth.getSession();
-    if (data?.session?.access_token) {
-      token = data.session.access_token;
+    const { data, error } = await supabase.auth.getSession();
+    if (!error && data?.session?.access_token) {
+      // Check expiry - refresh if expiring within 60 seconds
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      if (data.session.expires_at && data.session.expires_at < nowSeconds + 60) {
+        const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
+        if (!refreshErr && refreshed?.session?.access_token) {
+          return refreshed.session.access_token;
+        }
+      }
+      return data.session.access_token;
     }
   } catch (e) {
-    console.error('Error getting session from supabase client', e);
+    console.error('Error fetching/refreshing supabase session:', e);
   }
 
   // 2. Fallback to chrome.storage.local
-  if (!token && typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
     try {
       const result = await new Promise<any>((resolve) => {
         chrome.storage.local.get(['supabase-session'], resolve);
@@ -26,32 +33,74 @@ export const fetchApi = async (endpoint: string, options: RequestInit = {}) => {
       const sessionString = result?.['supabase-session'];
       if (sessionString) {
         const session = typeof sessionString === 'string' ? JSON.parse(sessionString) : sessionString;
-        token = session?.access_token || '';
-        // If supabase client didn't have it, hydrate supabase client
         if (session?.refresh_token && session?.access_token) {
-          supabase.auth.setSession({
+          const { data } = await supabase.auth.setSession({
             access_token: session.access_token,
             refresh_token: session.refresh_token
-          }).catch(console.error);
+          });
+          if (data?.session?.access_token) {
+            return data.session.access_token;
+          }
         }
+        if (session?.access_token) return session.access_token;
       }
     } catch (e) {
-      console.error('Error parsing session from chrome.storage', e);
+      console.error('Error restoring session from chrome.storage:', e);
     }
   }
 
-  // 3. Fallback to localStorage if still not found
-  if (!token && typeof window !== 'undefined' && window.localStorage) {
+  // 3. Fallback to localStorage
+  if (typeof window !== 'undefined' && window.localStorage) {
+    // Check custom supabase-session
     const sessionString = window.localStorage.getItem('supabase-session');
     if (sessionString) {
       try {
         const session = JSON.parse(sessionString);
-        token = session?.access_token || '';
+        if (session?.refresh_token && session?.access_token) {
+          const { data } = await supabase.auth.setSession({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token
+          });
+          if (data?.session?.access_token) return data.session.access_token;
+        }
+        if (session?.access_token) return session.access_token;
       } catch (e) {
-        console.error('Error parsing session from localStorage', e);
+        console.error('Error parsing session from localStorage:', e);
+      }
+    }
+
+    // Check Supabase SDK default localStorage key
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        try {
+          const item = window.localStorage.getItem(key);
+          if (item) {
+            const parsed = JSON.parse(item);
+            if (parsed?.access_token) {
+              if (parsed?.refresh_token) {
+                const { data } = await supabase.auth.setSession({
+                  access_token: parsed.access_token,
+                  refresh_token: parsed.refresh_token
+                });
+                if (data?.session?.access_token) return data.session.access_token;
+              }
+              return parsed.access_token;
+            }
+          }
+        } catch (e) {
+          console.error('Error inspecting supabase auth localStorage token:', e);
+        }
       }
     }
   }
+
+  return '';
+};
+
+export const fetchApi = async (endpoint: string, options: RequestInit = {}) => {
+  const url = `${getApiBaseUrl()}${endpoint}`;
+  const token = await getValidAccessToken();
 
   const headers = new Headers(options.headers || {});
   if (token) {
@@ -61,13 +110,38 @@ export const fetchApi = async (endpoint: string, options: RequestInit = {}) => {
 
   const res = await fetch(url, { ...options, headers });
   if (!res.ok) {
-    throw new Error(`API Error: ${res.status} ${res.statusText}`);
+    let errorDetail = `${res.status} ${res.statusText}`;
+    try {
+      const errJson = await res.json();
+      if (errJson?.detail) errorDetail = errJson.detail;
+    } catch (_) {}
+    throw new Error(`API Error: ${errorDetail}`);
   }
   
   return res.json();
 };
 
-export const getTasks = () => fetchApi('/api/tasks');
+export const getTasks = async () => {
+  // Proactively try Render backend API first
+  try {
+    return await fetchApi('/api/tasks');
+  } catch (backendError) {
+    console.warn('Backend /api/tasks failed, attempting direct Supabase query:', backendError);
+    // Direct Supabase database fallback to guarantee task availability (e.g. cold start or Render latency)
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.id) {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        return data;
+      }
+    }
+    throw backendError;
+  }
+};
 export const createTask = (name: string) => fetchApi('/api/tasks', { method: 'POST', body: JSON.stringify({ name }) });
 export const deleteTask = (taskId: string) => fetchApi(`/api/tasks/${taskId}`, { method: 'DELETE' });
 

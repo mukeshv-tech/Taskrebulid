@@ -1,5 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { fetchApi, getTaskResources, createTaskResource, deleteTaskResource, getTaskActivity, analyzeTask, getTaskAIAnalyses, deleteTaskActivity, deleteTaskAIAnalysis, clearTaskActivity } from '../lib/api';
+import {
+  fetchApi,
+  getTasks,
+  getTaskResources,
+  createTaskResource,
+  deleteTaskResource,
+  getTaskActivity,
+  analyzeTask,
+  getTaskAIAnalyses,
+  deleteTaskActivity,
+  deleteTaskAIAnalysis,
+  clearTaskActivity
+} from '../lib/api';
 import { supabase } from '../lib/supabase';
 import GraphTab from './components/GraphTab';
 import LearningPathTab from './components/LearningPathTab';
@@ -15,6 +27,9 @@ import { AppLockSettingsModal } from './components/AppLockSettingsModal';
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [tasksError, setTasksError] = useState('');
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'graph' | 'clusters' | 'learning' | 'knowledge' | 'monitor' | 'search'>('overview');
   const [newTaskName, setNewTaskName] = useState('');
   const [selectedTask, setSelectedTask] = useState<any>(null);
   
@@ -357,22 +372,33 @@ const App: React.FC = () => {
 
   const loadTasks = async () => {
     try {
-      const data = await fetchApi('/api/tasks');
-      setTasks(data);
-
-      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.set({ cachedTasks: data });
-        chrome.storage.local.get(['selectedTaskId'], (result) => {
-          if (result && result.selectedTaskId && data && data.length > 0) {
-            const found = data.find((t: any) => t.id === result.selectedTaskId);
-            if (found) {
-              setSelectedTask(found);
+      setTasksLoading(true);
+      setTasksError('');
+      const data = await getTasks();
+      if (Array.isArray(data)) {
+        setTasks(data);
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+          chrome.storage.local.set({ cachedTasks: data });
+          chrome.storage.local.get(['selectedTaskId'], (result) => {
+            if (result && result.selectedTaskId && data.length > 0) {
+              const found = data.find((t: any) => t.id === result.selectedTaskId);
+              if (found) {
+                setSelectedTask(found);
+              }
             }
-          }
-        });
+          });
+        }
+        if (typeof window !== 'undefined' && window.localStorage) {
+          try {
+            window.localStorage.setItem('cachedTasks', JSON.stringify(data));
+          } catch (_) {}
+        }
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      console.error('Failed to load tasks:', e);
+      setTasksError(e?.message || 'Failed to sync tasks from server');
+    } finally {
+      setTasksLoading(false);
     }
   };
 
@@ -600,172 +626,204 @@ const App: React.FC = () => {
           </p>
         </div>
 
-        <ResumeSection taskId={selectedTask.id} />
-        
-        <ResourceMonitor taskId={selectedTask.id} />
-
-        <div className="task-resources" style={{ padding: '12px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h4 style={{ color: 'var(--text-primary)' }}>{resources.length} Resources</h4>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button onClick={() => setShowAddForm(true)} style={{ background: 'var(--bg-subtle)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', fontSize: '11px' }}>+ Add Link</button>
-              <button onClick={handleAddCurrentTab} style={{ background: 'var(--accent-indigo)', color: '#ffffff', padding: '4px 8px', fontSize: '11px' }}>+ Current Tab</button>
-            </div>
-          </div>
-          
-          {showAddForm && (
-            <div style={{ marginTop: '10px', padding: '10px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-primary)' }}>
-              <h5 style={{ color: 'var(--accent-cyan)' }}>Add Resource</h5>
-              <div style={{ marginBottom: '6px' }}>
-                <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)' }}>URL:</label>
-                <input type="text" value={newUrl} onChange={e => setNewUrl(e.target.value)} style={{ width: '100%' }} />
-              </div>
-              <div style={{ marginBottom: '10px' }}>
-                <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)' }}>Title:</label>
-                <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)} style={{ width: '100%' }} />
-              </div>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button onClick={handleAddResource} style={{ background: 'var(--accent-cyan)', color: '#000000', padding: '4px 10px', fontSize: '12px' }}>Save</button>
-                <button onClick={() => setShowAddForm(false)} style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border-color)', padding: '4px 8px', fontSize: '12px' }}>Cancel</button>
-              </div>
-            </div>
-          )}
-          
-          {resources.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '8px' }}>No resources yet.</p>
-          ) : (
-            <ul style={{ listStyleType: 'none', padding: 0, marginTop: '10px' }}>
-              {resources.map((res, idx) => (
-                <li key={res.id} style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid var(--border-subtle)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <strong style={{ color: 'var(--text-primary)', fontSize: '12px' }}>{idx + 1}. {res.title || 'Untitled'}</strong>
-                      <br />
-                      <a href={res.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: 'var(--accent-cyan)', wordBreak: 'break-all' }}>{res.url}</a>
-                    </div>
-                    <button onClick={() => handleDeleteResource(res.id)} style={{ color: 'var(--accent-rose)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '11px', padding: '2px 6px' }}>Delete</button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+        <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+          {[
+            { id: 'overview', label: 'Overview' },
+            { id: 'graph', label: 'Graph' },
+            { id: 'clusters', label: 'Clusters' },
+            { id: 'learning', label: 'Learning' },
+            { id: 'knowledge', label: 'Knowledge' },
+            { id: 'monitor', label: 'Monitor' },
+            { id: 'search', label: 'Search' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id as any)}
+              style={{
+                padding: '5px 10px',
+                fontSize: '11px',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: activeSubTab === tab.id ? 700 : 500,
+                background: activeSubTab === tab.id ? 'var(--accent-indigo)' : 'var(--bg-subtle)',
+                color: activeSubTab === tab.id ? '#ffffff' : 'var(--text-secondary)'
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        <div className="task-activity" style={{ padding: '12px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>Recent Activity ({activities.length})</h4>
-            {activities.length > 0 && (
-              <button onClick={handleClearAllActivity} style={{ fontSize: '10px', padding: '2px 6px', color: 'var(--accent-rose)', background: 'transparent', border: '1px solid var(--accent-rose)', borderRadius: '4px' }}>Clear All</button>
-            )}
-          </div>
-          {activities.length === 0 ? (
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No recorded activity yet.</p>
-          ) : (
-            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-              {Object.entries(activities.reduce((acc, act) => {
-                const date = new Date(act.timestamp).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
-                if (!acc[date]) acc[date] = [];
-                acc[date].push(act);
-                return acc;
-              }, {} as Record<string, any[]>)).map(([dateStr, acts]) => (
-                <div key={dateStr} style={{ marginBottom: '10px' }}>
-                  <div style={{ fontWeight: 'bold', fontSize: '11px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)', marginBottom: '5px' }}>{dateStr}</div>
-                  <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
-                    {(acts as any[]).map((act: any) => (
-                      <li key={act.id} style={{ marginBottom: '5px', paddingBottom: '5px', borderBottom: '1px solid var(--border-subtle)', fontSize: '11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <span style={{ background: 'var(--bg-subtle)', color: 'var(--accent-cyan)', padding: '2px 5px', borderRadius: '3px', marginRight: '6px', fontSize: '10px', fontWeight: 600 }}>
-                            {String(act.event_type)}
-                          </span>
-                          {act.title ? <strong style={{ color: 'var(--text-primary)' }}>{String(act.title)}</strong> : <span style={{ wordBreak: 'break-all', color: 'var(--text-secondary)' }}>{act.url}</span>}
-                        </div>
-                        <button onClick={() => handleDeleteActivity(act.id)} style={{ padding: '2px 5px', fontSize: '10px', color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>✕</button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        
-        <div className="task-ai-analysis" style={{ padding: '14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h4 style={{ margin: 0, color: 'var(--accent-purple)' }}>✨ AI Analysis</h4>
-            <div style={{ display: 'flex', gap: '10px' }}>
-                <button 
-                  onClick={handleAnalyzeTask} 
-                  disabled={isAnalyzing}
-                  style={{ background: 'var(--accent-indigo)', color: 'white', padding: '5px 10px', fontSize: '11px' }}
-                >
-                  {aiAnalysis ? (isAnalyzing ? 'Refreshing...' : 'Refresh Analysis') : (isAnalyzing ? 'Analyzing...' : 'Analyze Task')}
-                </button>
-            </div>
-          </div>
-          
-          {aiError && <p style={{ color: 'var(--accent-rose)', fontSize: '12px', marginTop: '10px' }}>{aiError}</p>}
-          
-          {aiAnalysis && aiAnalysis.result && (
-            <div style={{ marginTop: '15px', fontSize: '12px' }}>
+        {activeSubTab === 'overview' && (
+          <>
+            <ResumeSection taskId={selectedTask.id} />
+
+            <div className="task-resources" style={{ padding: '12px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ background: 'var(--accent-purple-subtle)', color: 'var(--accent-purple)', padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 'bold' }}>AI-generated</span>
-                <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteAnalysis(); }} style={{ padding: '2px 5px', fontSize: '10px', background: 'transparent', color: 'var(--accent-rose)', border: '1px solid var(--accent-rose)', borderRadius: '3px', cursor: 'pointer' }}>Delete</button>
+                <h4 style={{ color: 'var(--text-primary)' }}>{resources.length} Resources</h4>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={() => setShowAddForm(true)} style={{ background: 'var(--bg-subtle)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', fontSize: '11px' }}>+ Add Link</button>
+                  <button onClick={handleAddCurrentTab} style={{ background: 'var(--accent-indigo)', color: '#ffffff', padding: '4px 8px', fontSize: '11px' }}>+ Current Tab</button>
+                </div>
               </div>
               
-              {aiAnalysis.result.task_summary ? (
-                <p style={{ fontStyle: 'italic', marginTop: '10px', color: 'var(--text-secondary)', lineHeight: '1.45' }}>"{aiAnalysis.result.task_summary}"</p>
-              ) : (
-                <p style={{ fontStyle: 'italic', marginTop: '10px', color: 'var(--text-muted)' }}>No summary generated yet. Click "Refresh Analysis" to analyze this task.</p>
+              {showAddForm && (
+                <div style={{ marginTop: '10px', padding: '10px', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-primary)' }}>
+                  <h5 style={{ color: 'var(--accent-cyan)' }}>Add Resource</h5>
+                  <div style={{ marginBottom: '6px' }}>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)' }}>URL:</label>
+                    <input type="text" value={newUrl} onChange={e => setNewUrl(e.target.value)} style={{ width: '100%' }} />
+                  </div>
+                  <div style={{ marginBottom: '10px' }}>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-muted)' }}>Title:</label>
+                    <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)} style={{ width: '100%' }} />
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button onClick={handleAddResource} style={{ background: 'var(--accent-cyan)', color: '#000000', padding: '4px 10px', fontSize: '12px' }}>Save</button>
+                    <button onClick={() => setShowAddForm(false)} style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border-color)', padding: '4px 8px', fontSize: '12px' }}>Cancel</button>
+                  </div>
+                </div>
               )}
               
-              <h5 style={{ margin: '12px 0 5px 0', color: 'var(--text-primary)' }}>Topics</h5>
-              {(!aiAnalysis.result.topics || aiAnalysis.result.topics.length === 0) ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: '11px', margin: '0 0 10px 0' }}>No topics extracted yet.</p>
+              {resources.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '8px' }}>No resources yet.</p>
               ) : (
-                <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px', color: 'var(--text-secondary)' }}>
-                  {aiAnalysis.result.topics.map((t: any, i: number) => (
-                    <li key={i}>{String(t.name)} {t.confidence !== undefined && <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>({Math.round((t.confidence || 1) * 100)}%)</span>}</li>
-                  ))}
-                </ul>
-              )}
-              
-              <h5 style={{ margin: '12px 0 5px 0', color: 'var(--text-primary)' }}>Resource Analysis</h5>
-              {(!aiAnalysis.result.resource_analysis || aiAnalysis.result.resource_analysis.length === 0) ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: '11px', margin: '0 0 10px 0' }}>No resources analyzed yet.</p>
-              ) : (
-                <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px', color: 'var(--text-secondary)' }}>
-                  {aiAnalysis.result.resource_analysis.map((r: any, i: number) => {
-                    const res = resources.find(rx => rx.id === r.resource_id);
-                    return (
-                      <li key={i}>
-                        <strong style={{ color: 'var(--text-primary)' }}>{String(res ? res.title || res.url : r.resource_id)}</strong> - <span style={{ color: 'var(--accent-cyan)' }}>{String(r.relevance)}</span>
-                        <br/>
-                        <span style={{ color: 'var(--text-muted)' }}>{String(r.reason)}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-              
-              <h5 style={{ margin: '12px 0 5px 0', color: 'var(--text-primary)' }}>Suggested Next Steps</h5>
-              {(!aiAnalysis.result.suggested_next_steps || aiAnalysis.result.suggested_next_steps.length === 0) ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: '11px', margin: '0 0 10px 0' }}>No next steps available yet.</p>
-              ) : (
-                <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px', color: 'var(--text-secondary)' }}>
-                  {aiAnalysis.result.suggested_next_steps.map((step: string, i: number) => (
-                    <li key={i}>{String(step)}</li>
+                <ul style={{ listStyleType: 'none', padding: 0, marginTop: '10px' }}>
+                  {resources.map((res, idx) => (
+                    <li key={res.id} style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid var(--border-subtle)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <strong style={{ color: 'var(--text-primary)', fontSize: '12px' }}>{idx + 1}. {res.title || 'Untitled'}</strong>
+                          <br />
+                          <a href={res.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: 'var(--accent-cyan)', wordBreak: 'break-all' }}>{res.url}</a>
+                        </div>
+                        <button onClick={() => handleDeleteResource(res.id)} style={{ color: 'var(--accent-rose)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '11px', padding: '2px 6px' }}>Delete</button>
+                      </div>
+                    </li>
                   ))}
                 </ul>
               )}
             </div>
-          )}
-        </div>
-        
-        <SearchTab taskId={selectedTask.id} />
-        <GraphTab taskId={selectedTask.id} />
-        <ClustersTab taskId={selectedTask.id} />
-        <LearningPathTab taskId={selectedTask.id} />
-        <KnowledgeTab taskId={selectedTask.id} taskName={selectedTask.name} />
+
+            <div className="task-activity" style={{ padding: '12px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>Recent Activity ({activities.length})</h4>
+                {activities.length > 0 && (
+                  <button onClick={handleClearAllActivity} style={{ fontSize: '10px', padding: '2px 6px', color: 'var(--accent-rose)', background: 'transparent', border: '1px solid var(--accent-rose)', borderRadius: '4px' }}>Clear All</button>
+                )}
+              </div>
+              {activities.length === 0 ? (
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No recorded activity yet.</p>
+              ) : (
+                <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                  {Object.entries(activities.reduce((acc, act) => {
+                    const date = new Date(act.timestamp).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+                    if (!acc[date]) acc[date] = [];
+                    acc[date].push(act);
+                    return acc;
+                  }, {} as Record<string, any[]>)).map(([dateStr, acts]) => (
+                    <div key={dateStr} style={{ marginBottom: '10px' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '11px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)', marginBottom: '5px' }}>{dateStr}</div>
+                      <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
+                        {(acts as any[]).map((act: any) => (
+                          <li key={act.id} style={{ marginBottom: '5px', paddingBottom: '5px', borderBottom: '1px solid var(--border-subtle)', fontSize: '11px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                              <span style={{ background: 'var(--bg-subtle)', color: 'var(--accent-cyan)', padding: '2px 5px', borderRadius: '3px', marginRight: '6px', fontSize: '10px', fontWeight: 600 }}>
+                                {String(act.event_type)}
+                              </span>
+                              {act.title ? <strong style={{ color: 'var(--text-primary)' }}>{String(act.title)}</strong> : <span style={{ wordBreak: 'break-all', color: 'var(--text-secondary)' }}>{act.url}</span>}
+                            </div>
+                            <button onClick={() => handleDeleteActivity(act.id)} style={{ padding: '2px 5px', fontSize: '10px', color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}>✕</button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="task-ai-analysis" style={{ padding: '14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ margin: 0, color: 'var(--accent-purple)' }}>✨ AI Analysis</h4>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button 
+                      onClick={handleAnalyzeTask} 
+                      disabled={isAnalyzing}
+                      style={{ background: 'var(--accent-indigo)', color: 'white', padding: '5px 10px', fontSize: '11px' }}
+                    >
+                      {aiAnalysis ? (isAnalyzing ? 'Refreshing...' : 'Refresh Analysis') : (isAnalyzing ? 'Analyzing...' : 'Analyze Task')}
+                    </button>
+                </div>
+              </div>
+              
+              {aiError && <p style={{ color: 'var(--accent-rose)', fontSize: '12px', marginTop: '10px' }}>{aiError}</p>}
+              
+              {aiAnalysis && aiAnalysis.result && (
+                <div style={{ marginTop: '15px', fontSize: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ background: 'var(--accent-purple-subtle)', color: 'var(--accent-purple)', padding: '2px 6px', borderRadius: '10px', fontSize: '10px', fontWeight: 'bold' }}>AI-generated</span>
+                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteAnalysis(); }} style={{ padding: '2px 5px', fontSize: '10px', background: 'transparent', color: 'var(--accent-rose)', border: '1px solid var(--accent-rose)', borderRadius: '3px', cursor: 'pointer' }}>Delete</button>
+                  </div>
+                  
+                  {aiAnalysis.result.task_summary ? (
+                    <p style={{ fontStyle: 'italic', marginTop: '10px', color: 'var(--text-secondary)', lineHeight: '1.45' }}>"{aiAnalysis.result.task_summary}"</p>
+                  ) : (
+                    <p style={{ fontStyle: 'italic', marginTop: '10px', color: 'var(--text-muted)' }}>No summary generated yet. Click "Refresh Analysis" to analyze this task.</p>
+                  )}
+                  
+                  <h5 style={{ margin: '12px 0 5px 0', color: 'var(--text-primary)' }}>Topics</h5>
+                  {(!aiAnalysis.result.topics || aiAnalysis.result.topics.length === 0) ? (
+                    <p style={{ color: 'var(--text-muted)', fontSize: '11px', margin: '0 0 10px 0' }}>No topics extracted yet.</p>
+                  ) : (
+                    <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px', color: 'var(--text-secondary)' }}>
+                      {aiAnalysis.result.topics.map((t: any, i: number) => (
+                        <li key={i}>{String(t.name)} {t.confidence !== undefined && <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>({Math.round((t.confidence || 1) * 100)}%)</span>}</li>
+                      ))}
+                    </ul>
+                  )}
+                  
+                  <h5 style={{ margin: '12px 0 5px 0', color: 'var(--text-primary)' }}>Resource Analysis</h5>
+                  {(!aiAnalysis.result.resource_analysis || aiAnalysis.result.resource_analysis.length === 0) ? (
+                    <p style={{ color: 'var(--text-muted)', fontSize: '11px', margin: '0 0 10px 0' }}>No resources analyzed yet.</p>
+                  ) : (
+                    <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px', color: 'var(--text-secondary)' }}>
+                      {aiAnalysis.result.resource_analysis.map((r: any, i: number) => {
+                        const res = resources.find(rx => rx.id === r.resource_id);
+                        return (
+                          <li key={i}>
+                            <strong style={{ color: 'var(--text-primary)' }}>{String(res ? res.title || res.url : r.resource_id)}</strong> - <span style={{ color: 'var(--accent-cyan)' }}>{String(r.relevance)}</span>
+                            <br/>
+                            <span style={{ color: 'var(--text-muted)' }}>{String(r.reason)}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  
+                  <h5 style={{ margin: '12px 0 5px 0', color: 'var(--text-primary)' }}>Suggested Next Steps</h5>
+                  {(!aiAnalysis.result.suggested_next_steps || aiAnalysis.result.suggested_next_steps.length === 0) ? (
+                    <p style={{ color: 'var(--text-muted)', fontSize: '11px', margin: '0 0 10px 0' }}>No next steps available yet.</p>
+                  ) : (
+                    <ul style={{ margin: '0 0 10px 0', paddingLeft: '20px', color: 'var(--text-secondary)' }}>
+                      {aiAnalysis.result.suggested_next_steps.map((step: string, i: number) => (
+                        <li key={i}>{String(step)}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {activeSubTab === 'monitor' && <ResourceMonitor taskId={selectedTask.id} />}
+        {activeSubTab === 'search' && <SearchTab taskId={selectedTask.id} />}
+        {activeSubTab === 'graph' && <GraphTab taskId={selectedTask.id} />}
+        {activeSubTab === 'clusters' && <ClustersTab taskId={selectedTask.id} />}
+        {activeSubTab === 'learning' && <LearningPathTab taskId={selectedTask.id} />}
+        {activeSubTab === 'knowledge' && <KnowledgeTab taskId={selectedTask.id} taskName={selectedTask.name} />}
 
         <button className="delete-task-btn" onClick={(e) => handleDeleteTask(e, selectedTask.id)} style={{ marginTop: '20px' }}>Delete Task</button>
       </div>
@@ -843,7 +901,37 @@ const App: React.FC = () => {
       <KnowledgeTab />
 
       <div className="tasks-section">
-        <h3>My Tasks</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ margin: 0 }}>My Tasks</h3>
+          <button
+            onClick={loadTasks}
+            disabled={tasksLoading}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border-color)',
+              borderRadius: '4px',
+              padding: '3px 8px',
+              fontSize: '11px',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer'
+            }}
+          >
+            {tasksLoading ? 'Syncing...' : '↻ Refresh'}
+          </button>
+        </div>
+
+        {tasksError && (
+          <div style={{ marginTop: '8px', padding: '8px 10px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--accent-rose)', borderRadius: '4px', color: 'var(--accent-rose)', fontSize: '11px' }}>
+            ⚠️ {tasksError}
+          </div>
+        )}
+
+        {tasks.length === 0 && !tasksLoading && (
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
+            No tasks found. Create one below or sync with your server.
+          </p>
+        )}
+
         <ul className="task-list">
           {tasks.map(t => (
             <li key={t.id} onClick={() => selectTask(t)} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
