@@ -92,7 +92,11 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       doc += `## Activity Timeline (${activities.length} events)\n\n`;
       activities.slice(0, 30).forEach((act) => {
         const dateObj = new Date(act.timestamp);
-        const dateStr = dateObj.toISOString().split('T')[0];
+        // Format both date and time consistently in user's local timezone
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
         const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const eventLabel = act.event_type || 'event';
         let detail = '';
