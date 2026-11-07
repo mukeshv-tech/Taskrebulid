@@ -94,7 +94,18 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         const dateObj = new Date(act.timestamp);
         const dateStr = dateObj.toISOString().split('T')[0];
         const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        doc += `- \`${dateStr} ${timeStr}\` **${act.event_type}**: [${act.title || act.url}](${act.url})\n`;
+        const eventLabel = act.event_type || 'event';
+        let detail = '';
+        if (act.url) {
+          detail = `[${act.title || act.url}](${act.url})`;
+        } else if (act.title) {
+          detail = `"${act.title}"`;
+        } else if (act.event_type === 'tab_closed') {
+          detail = 'Tab closed';
+        } else {
+          detail = 'Activity recorded';
+        }
+        doc += `- \`${dateStr} ${timeStr}\` **${eventLabel}**: ${detail}\n`;
       });
       doc += '\n';
     }
