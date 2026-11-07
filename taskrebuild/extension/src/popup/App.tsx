@@ -11,12 +11,14 @@ import ClustersTab from './components/ClustersTab';
 import KnowledgeTab from './components/KnowledgeTab';
 import { AppLockScreen } from './components/AppLockScreen';
 import { AppLockSettingsModal } from './components/AppLockSettingsModal';
+import { ExportModal } from './components/ExportModal';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
   const [newTaskName, setNewTaskName] = useState('');
   const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [showExportModal, setShowExportModal] = useState<boolean>(false);
   
   const [resources, setResources] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
@@ -28,6 +30,7 @@ const App: React.FC = () => {
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiError, setAiError] = useState('');
+  const [taskDataLoading, setTaskDataLoading] = useState<boolean>(false);
 
   // Phase 3 Active Task State
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
@@ -116,6 +119,11 @@ const App: React.FC = () => {
   };
 
   const selectTask = (task: any) => {
+    // Clear previous task-scoped data immediately to prevent cross-task bleed
+    setResources([]);
+    setActivities([]);
+    setAiAnalysis(null);
+    setAiError('');
     setSelectedTask(task);
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
       if (task && task.id) {
@@ -264,17 +272,48 @@ const App: React.FC = () => {
   }, [session?.user?.id]);
 
   useEffect(() => {
-    if (selectedTask) {
-      Promise.all([
-        loadResources(selectedTask.id),
-        loadActivity(selectedTask.id),
-        loadAiAnalyses(selectedTask.id)
-      ]);
+    let isCancelled = false;
+    if (selectedTask?.id) {
+      const currentTaskId = selectedTask.id;
+      setTaskDataLoading(true);
       setShowAddForm(false);
       setNewUrl('');
       setNewTitle('');
+
+      Promise.all([
+        getTaskResources(currentTaskId).catch(() => []),
+        getTaskActivity(currentTaskId).catch(() => []),
+        getTaskAIAnalyses(currentTaskId).catch(() => [])
+      ]).then(([resData, actData, analyses]) => {
+        if (isCancelled) return;
+        setResources(Array.isArray(resData) ? resData : []);
+        setActivities(Array.isArray(actData) ? actData : []);
+
+        if (analyses && analyses.length > 0) {
+          const match = analyses.find((a: any) => 
+            a.analysis_type === 'full_task_analysis' || 
+            (a.result && (a.result.task_summary !== undefined || a.result.topics !== undefined))
+          ) || analyses[0];
+
+          if (match && match.result && !match.result.markdown) {
+            setAiAnalysis(match);
+          } else {
+            setAiAnalysis(null);
+          }
+        } else {
+          setAiAnalysis(null);
+        }
+      }).finally(() => {
+        if (!isCancelled) setTaskDataLoading(false);
+      });
+    } else {
+      setTaskDataLoading(false);
     }
-  }, [selectedTask]);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedTask?.id]);
 
   // Realtime subscription for selected task resources and activity
   useEffect(() => {
@@ -557,9 +596,31 @@ const App: React.FC = () => {
       <div className="popup-container">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button className="back-btn" onClick={() => selectTask(null)}>← Back to tasks</button>
-          <button className="theme-toggle-btn" onClick={toggleTheme} title="Toggle Dark/Light Mode">
-            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-          </button>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <button
+              onClick={() => setShowExportModal(true)}
+              disabled={taskDataLoading}
+              style={{
+                background: taskDataLoading ? 'var(--bg-card)' : 'var(--accent-indigo)',
+                color: taskDataLoading ? 'var(--text-muted)' : '#ffffff',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 10px',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: taskDataLoading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+              title={taskDataLoading ? 'Loading task data...' : 'Export Research Brief (Markdown, Obsidian, JSON)'}
+            >
+              📥 {taskDataLoading ? 'Loading...' : 'Export Brief'}
+            </button>
+            <button className="theme-toggle-btn" onClick={toggleTheme} title="Toggle Dark/Light Mode">
+              {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+            </button>
+          </div>
         </div>
         <h2>📁 {selectedTask.name}</h2>
         <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -758,6 +819,16 @@ const App: React.FC = () => {
         <KnowledgeTab taskId={selectedTask.id} taskName={selectedTask.name} />
 
         <button className="delete-task-btn" onClick={(e) => handleDeleteTask(e, selectedTask.id)} style={{ marginTop: '20px' }}>Delete Task</button>
+
+        {showExportModal && (
+          <ExportModal
+            task={selectedTask}
+            resources={resources}
+            activities={activities}
+            aiAnalysis={aiAnalysis}
+            onClose={() => setShowExportModal(false)}
+          />
+        )}
       </div>
     );
   }
