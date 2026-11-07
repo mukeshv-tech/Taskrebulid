@@ -11,12 +11,14 @@ import ClustersTab from './components/ClustersTab';
 import KnowledgeTab from './components/KnowledgeTab';
 import { AppLockScreen } from './components/AppLockScreen';
 import { AppLockSettingsModal } from './components/AppLockSettingsModal';
+import { ExportModal } from './components/ExportModal';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<any>(null);
   const [tasks, setTasks] = useState<any[]>([]);
   const [newTaskName, setNewTaskName] = useState('');
   const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [showExportModal, setShowExportModal] = useState<boolean>(false);
   
   const [resources, setResources] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
@@ -557,9 +559,30 @@ const App: React.FC = () => {
       <div className="popup-container">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button className="back-btn" onClick={() => selectTask(null)}>← Back to tasks</button>
-          <button className="theme-toggle-btn" onClick={toggleTheme} title="Toggle Dark/Light Mode">
-            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-          </button>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <button
+              onClick={() => setShowExportModal(true)}
+              style={{
+                background: 'var(--accent-indigo)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 10px',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+              title="Export Research Brief (Markdown, Obsidian, JSON)"
+            >
+              📥 Export Brief
+            </button>
+            <button className="theme-toggle-btn" onClick={toggleTheme} title="Toggle Dark/Light Mode">
+              {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+            </button>
+          </div>
         </div>
         <h2>📁 {selectedTask.name}</h2>
         <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -758,6 +781,16 @@ const App: React.FC = () => {
         <KnowledgeTab taskId={selectedTask.id} taskName={selectedTask.name} />
 
         <button className="delete-task-btn" onClick={(e) => handleDeleteTask(e, selectedTask.id)} style={{ marginTop: '20px' }}>Delete Task</button>
+
+        {showExportModal && (
+          <ExportModal
+            task={selectedTask}
+            resources={resources}
+            activities={activities}
+            aiAnalysis={aiAnalysis}
+            onClose={() => setShowExportModal(false)}
+          />
+        )}
       </div>
     );
   }
