@@ -25,7 +25,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     let doc = '';
 
     if (isObsidian) {
-      doc += `---\ntitle: "${task.name}"\ndate: ${createdDate}\ntype: research-brief\nsource: TaskRebuild\n---\n\n`;
+      // Serialize title safely in YAML frontmatter to escape quotes, backslashes, and newlines
+      const safeTitle = JSON.stringify(task.name || 'Untitled Task');
+      doc += `---\ntitle: ${safeTitle}\ndate: ${createdDate}\ntype: research-brief\nsource: TaskRebuild\n---\n\n`;
     }
 
     doc += `# ${task.name}\n\n`;
@@ -89,8 +91,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     if (activities.length > 0) {
       doc += `## Activity Timeline (${activities.length} events)\n\n`;
       activities.slice(0, 30).forEach((act) => {
-        const time = new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        doc += `- \`${time}\` **${act.event_type}**: [${act.title || act.url}](${act.url})\n`;
+        const dateObj = new Date(act.timestamp);
+        const dateStr = dateObj.toISOString().split('T')[0];
+        const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        doc += `- \`${dateStr} ${timeStr}\` **${act.event_type}**: [${act.title || act.url}](${act.url})\n`;
       });
       doc += '\n';
     }
@@ -105,7 +109,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         summary: aiAnalysis?.result?.task_summary || null,
         topics: aiAnalysis?.result?.topics || [],
         suggested_next_steps: aiAnalysis?.result?.suggested_next_steps || [],
-        resources: resources.map((r) => ({ title: r.title, url: r.url, created_at: r.created_at })),
+        resource_analysis: aiAnalysis?.result?.resource_analysis || [],
+        resources: resources.map((r) => ({ id: r.id, title: r.title, url: r.url, created_at: r.created_at })),
         recent_activity: activities.map((a) => ({ type: a.event_type, title: a.title, url: a.url, time: a.timestamp })),
         exported_at: new Date().toISOString(),
       },
