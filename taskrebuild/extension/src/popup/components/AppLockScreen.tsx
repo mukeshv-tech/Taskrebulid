@@ -27,12 +27,7 @@ export const AppLockScreen: React.FC<AppLockScreenProps> = ({
   useEffect(() => {
     isBiometricsAvailable().then((available) => {
       setHasBiometrics(available && !!biometricCredentialId);
-      // Auto-trigger biometric prompt if credential is saved
-      if (available && biometricCredentialId) {
-        handleBiometricUnlock(biometricCredentialId);
-      }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [biometricCredentialId]);
 
   const handleBiometricUnlock = async (credIdToUse?: string) => {
