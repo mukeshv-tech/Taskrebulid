@@ -155,7 +155,7 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
         currentAngle += angleStep;
       }
 
-      let bg = '#1e1e1e';
+      const bg = '#1e1e1e';
       let border = '#3b82f6';
 
       if (colorByCluster && clusters.length > 0) {
