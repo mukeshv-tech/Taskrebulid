@@ -53,6 +53,61 @@ def find_canonical_node_key(label: str, existing_canonical_keys: List[str]) -> O
     return None
 
 
+
+def get_global_graph(user_id: str) -> Dict[str, Any]:
+    supabase = get_supabase()
+
+    tasks_res = supabase.table('tasks').select('id, name, created_at').eq('user_id', user_id).execute()
+    user_tasks = tasks_res.data or []
+    task_map = {t['id']: t['name'] for t in user_tasks}
+    task_ids = list(task_map.keys())
+
+    if not task_ids:
+        return {'nodes': [], 'edges': [], 'cross_task_links': 0}
+
+    nodes_res = supabase.table('task_nodes').select('*').eq('user_id', user_id).execute()
+    edges_res = supabase.table('task_edges').select('*').eq('user_id', user_id).execute()
+
+    raw_nodes = nodes_res.data or []
+    raw_edges = edges_res.data or []
+
+    valid_edges = [e for e in raw_edges if not e.get('is_rejected')]
+
+    enriched_nodes = []
+    concept_to_node_ids = {}
+
+    for n in raw_nodes:
+        tid = n.get('task_id')
+        n_copy = dict(n)
+        n_copy['task_name'] = task_map.get(tid, 'Unknown Task')
+        enriched_nodes.append(n_copy)
+
+        norm = normalize_label(n.get('label', '')).lower()
+        if norm:
+            concept_to_node_ids.setdefault(norm, []).append(n['id'])
+
+    synthetic_edges = []
+    bridge_count = 0
+    for norm, ids in concept_to_node_ids.items():
+        if len(ids) > 1:
+            for i in range(len(ids) - 1):
+                bridge_count += 1
+                synthetic_edges.append({
+                    'id': f'cross-task-{ids[i]}-{ids[i+1]}',
+                    'source_node_id': ids[i],
+                    'target_node_id': ids[i+1],
+                    'relationship_type': 'cross_task_bridge',
+                    'confidence': 0.95,
+                    'is_ai_generated': False
+                })
+
+    return {
+        'nodes': enriched_nodes,
+        'edges': valid_edges + synthetic_edges,
+        'cross_task_links': bridge_count
+    }
+
+
 def get_task_graph(task_id: str, user_id: str) -> Dict[str, Any]:
     supabase = get_supabase()
 

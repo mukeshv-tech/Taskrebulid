@@ -1,8 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.auth import get_current_user
-from app.services.graph_service import get_task_graph, delete_node, delete_edge, reject_edge
+from app.services.graph_service import get_task_graph, get_global_graph, delete_node, delete_edge, reject_edge
 
 router = APIRouter()
+
+@router.get("/api/graph/global")
+def get_user_global_graph(user = Depends(get_current_user)):
+    try:
+        return get_global_graph(user.id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch global graph: {str(e)}")
 
 @router.get("/api/tasks/{task_id}/graph")
 def get_graph(task_id: str, user = Depends(get_current_user)):

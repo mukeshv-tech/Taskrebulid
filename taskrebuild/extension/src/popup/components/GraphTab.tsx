@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   getTaskGraph,
+  getGlobalGraph,
   analyzeTaskGraph,
   getClusters,
   generateClusters,
@@ -13,7 +14,7 @@ import '@xyflow/react/dist/style.css';
 import { GalaxyGraph, GalaxyNode } from './GalaxyGraph';
 
 interface GraphTabProps {
-  taskId: string;
+  taskId?: string;
 }
 
 const CLUSTER_COLORS = [
@@ -26,6 +27,7 @@ const CLUSTER_COLORS = [
 ];
 
 const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
+  const [isGlobalView, setIsGlobalView] = useState<boolean>(!taskId);
   const [rawNodes, setRawNodes] = useState<any[]>([]);
   const [rawEdges, setRawEdges] = useState<any[]>([]);
   const [clusters, setClusters] = useState<any[]>([]);
@@ -49,13 +51,20 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
   const loadGraph = async () => {
     try {
       setError('');
-      const data = await getTaskGraph(taskId);
-      setRawNodes(data.nodes || []);
-      setRawEdges(data.edges || []);
-      
-      const clusterData = await getClusters(taskId);
-      const list = Array.isArray(clusterData) ? clusterData : (clusterData?.clusters || []);
-      setClusters(list);
+      if (isGlobalView || !taskId) {
+        const data = await getGlobalGraph();
+        setRawNodes(data.nodes || []);
+        setRawEdges(data.edges || []);
+        setClusters([]);
+      } else {
+        const data = await getTaskGraph(taskId);
+        setRawNodes(data.nodes || []);
+        setRawEdges(data.edges || []);
+        
+        const clusterData = await getClusters(taskId);
+        const list = Array.isArray(clusterData) ? clusterData : (clusterData?.clusters || []);
+        setClusters(list);
+      }
     } catch (e: any) {
       console.error(e);
       setError('Failed to load graph data.');
@@ -65,9 +74,10 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
   useEffect(() => {
     loadGraph();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskId]);
+  }, [taskId, isGlobalView]);
 
   const handleAnalyzeGraph = async () => {
+    if (!taskId) return;
     setIsAnalyzing(true);
     setError('');
     setSuccessMsg('');
@@ -85,6 +95,7 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
   };
 
   const handleClusterGraph = async () => {
+    if (!taskId) return;
     setIsClustering(true);
     setError('');
     try {
@@ -103,7 +114,10 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
   const handleDeleteNode = async (nodeId: string) => {
     if (!confirm('Are you sure you want to delete this node from the graph?')) return;
     try {
-      await deleteGraphNode(taskId, nodeId);
+      const targetNode = rawNodes.find(n => n.id === nodeId);
+      const effectiveTaskId = taskId || targetNode?.task_id;
+      if (!effectiveTaskId) return;
+      await deleteGraphNode(effectiveTaskId, nodeId);
       setSelectedNodeId(null);
       await loadGraph();
     } catch (e: any) {
@@ -114,7 +128,10 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
 
   const handleDeleteEdge = async (edgeId: string) => {
     try {
-      await deleteGraphEdge(taskId, edgeId);
+      const targetEdge = rawEdges.find(e => e.id === edgeId);
+      const effectiveTaskId = taskId || targetEdge?.task_id;
+      if (!effectiveTaskId) return;
+      await deleteGraphEdge(effectiveTaskId, edgeId);
       await loadGraph();
     } catch (e: any) {
       console.error(e);
@@ -124,7 +141,10 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
 
   const handleRejectEdge = async (edgeId: string) => {
     try {
-      await rejectGraphEdge(taskId, edgeId);
+      const targetEdge = rawEdges.find(e => e.id === edgeId);
+      const effectiveTaskId = taskId || targetEdge?.task_id;
+      if (!effectiveTaskId) return;
+      await rejectGraphEdge(effectiveTaskId, edgeId);
       await loadGraph();
     } catch (e: any) {
       console.error(e);
@@ -227,17 +247,58 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
   return (
     <div style={{ marginTop: '20px', background: '#121212', borderRadius: '8px', border: '1px solid #333', overflow: 'hidden' }}>
       {/* Header bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid #333', background: '#1e1e1e' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid #333', background: '#1e1e1e', flexWrap: 'wrap', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <h4 style={{ margin: 0, color: '#e5e7eb', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>🪐</span> Knowledge Map
+            <span>🪐</span> {isGlobalView ? 'Global Knowledge Map' : 'Knowledge Map'}
           </h4>
           <span style={{ fontSize: '10px', color: '#94a3b8', background: '#262626', padding: '2px 6px', borderRadius: '4px' }}>
             {rawNodes.length} nodes · {rawEdges.filter(e => !e.is_rejected).length} links
           </span>
+          {isGlobalView && (
+            <span style={{ fontSize: '10px', color: '#ec4899', background: 'rgba(236, 72, 153, 0.15)', border: '1px solid rgba(236, 72, 153, 0.3)', padding: '2px 6px', borderRadius: '4px' }}>
+              {rawEdges.filter(e => e.relationship_type === 'cross_task_bridge').length} cross-task bridges
+            </span>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          {/* Scope Toggle if taskId is present */}
+          {taskId && (
+            <div style={{ display: 'flex', background: '#262626', borderRadius: '4px', padding: '2px' }}>
+              <button
+                onClick={() => setIsGlobalView(false)}
+                style={{
+                  background: !isGlobalView ? '#8b5cf6' : 'none',
+                  color: !isGlobalView ? '#ffffff' : '#94a3b8',
+                  border: 'none',
+                  borderRadius: '3px',
+                  padding: '2px 7px',
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Task
+              </button>
+              <button
+                onClick={() => setIsGlobalView(true)}
+                style={{
+                  background: isGlobalView ? '#ec4899' : 'none',
+                  color: isGlobalView ? '#ffffff' : '#94a3b8',
+                  border: 'none',
+                  borderRadius: '3px',
+                  padding: '2px 7px',
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Global
+              </button>
+            </div>
+          )}
+
           {/* Galaxy vs 2D Flow Toggle */}
           <div style={{ display: 'flex', background: '#262626', borderRadius: '4px', padding: '2px' }}>
             <button
@@ -272,22 +333,26 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
             </button>
           </div>
 
-          <button 
-            onClick={handleClusterGraph} 
-            disabled={isClustering || rawNodes.length === 0}
-            style={{ background: '#0f766e', color: 'white', padding: '4px 8px', fontSize: '11px', border: 'none', borderRadius: '4px', cursor: 'pointer', opacity: isClustering ? 0.7 : 1 }}
-            title="Cluster nodes by semantic topic"
-          >
-            {isClustering ? 'Clustering...' : 'Auto-Cluster'}
-          </button>
-          <button 
-            onClick={handleAnalyzeGraph} 
-            disabled={isAnalyzing}
-            style={{ background: '#8b5cf6', color: 'white', padding: '4px 8px', fontSize: '11px', border: 'none', borderRadius: '4px', cursor: 'pointer', opacity: isAnalyzing ? 0.7 : 1 }}
-            title="Use AI to discover concept nodes and relationships"
-          >
-            {isAnalyzing ? 'Analyzing...' : 'Generate Connections'}
-          </button>
+          {!isGlobalView && taskId && (
+            <>
+              <button 
+                onClick={handleClusterGraph} 
+                disabled={isClustering || rawNodes.length === 0}
+                style={{ background: '#0f766e', color: 'white', padding: '4px 8px', fontSize: '11px', border: 'none', borderRadius: '4px', cursor: 'pointer', opacity: isClustering ? 0.7 : 1 }}
+                title="Cluster nodes by semantic topic"
+              >
+                {isClustering ? 'Clustering...' : 'Auto-Cluster'}
+              </button>
+              <button 
+                onClick={handleAnalyzeGraph} 
+                disabled={isAnalyzing}
+                style={{ background: '#8b5cf6', color: 'white', padding: '4px 8px', fontSize: '11px', border: 'none', borderRadius: '4px', cursor: 'pointer', opacity: isAnalyzing ? 0.7 : 1 }}
+                title="Use AI to discover concept nodes and relationships"
+              >
+                {isAnalyzing ? 'Analyzing...' : 'Generate Connections'}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -370,6 +435,8 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
               description: n.description,
               confidence: n.confidence,
               is_ai_generated: n.is_ai_generated,
+              task_name: n.task_name,
+              task_id: n.task_id,
               x: 0,
               y: 0,
               vx: 0,
@@ -381,6 +448,7 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
               source: e.source_node_id,
               target: e.target_node_id,
               label: e.relationship_type,
+              relationship_type: e.relationship_type,
               is_rejected: e.is_rejected
             }))}
             clusters={clusters}

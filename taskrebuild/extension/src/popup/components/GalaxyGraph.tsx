@@ -8,6 +8,8 @@ export interface GalaxyNode {
   description?: string;
   confidence?: number;
   is_ai_generated?: boolean;
+  task_name?: string;
+  task_id?: string;
   // Simulation physics properties
   x: number;
   y: number;
@@ -21,6 +23,7 @@ export interface GalaxyEdge {
   source: string;
   target: string;
   label?: string;
+  relationship_type?: string;
   is_rejected?: boolean;
 }
 
@@ -269,22 +272,34 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
           (hoveredNode && (source.id === hoveredNode.id || target.id === hoveredNode.id)) ||
           (activeSelected && (source.id === activeSelected.id || target.id === activeSelected.id));
 
-        const baseAlpha = (!sourceVisible || !targetVisible) ? 0.08 : (isHighlighted ? 0.9 : 0.4);
+        const isBridge = e.relationship_type === 'cross_task_bridge';
+        const baseAlpha = (!sourceVisible || !targetVisible) ? 0.08 : (isHighlighted ? 0.95 : (isBridge ? 0.65 : 0.4));
 
         ctx.beginPath();
+        if (isBridge) {
+          ctx.setLineDash([4, 4]);
+        } else {
+          ctx.setLineDash([]);
+        }
         ctx.moveTo(source.x, source.y);
         ctx.lineTo(target.x, target.y);
-        ctx.strokeStyle = isHighlighted ? 'rgba(56, 189, 248, 0.95)' : `rgba(71, 85, 105, ${baseAlpha})`;
-        ctx.lineWidth = (isHighlighted ? 2.5 : 1) / transform.scale;
+        if (isBridge) {
+          ctx.strokeStyle = isHighlighted ? 'rgba(236, 72, 153, 1)' : `rgba(236, 72, 153, ${baseAlpha})`;
+          ctx.lineWidth = (isHighlighted ? 3 : 1.8) / transform.scale;
+        } else {
+          ctx.strokeStyle = isHighlighted ? 'rgba(56, 189, 248, 0.95)' : `rgba(71, 85, 105, ${baseAlpha})`;
+          ctx.lineWidth = (isHighlighted ? 2.5 : 1) / transform.scale;
+        }
         ctx.stroke();
+        ctx.setLineDash([]); // reset dash
 
         // Edge label on hover or select
-        if (isHighlighted && e.label) {
+        if ((isHighlighted || isBridge) && (e.label || isBridge)) {
           const midX = (source.x + target.x) / 2;
           const midY = (source.y + target.y) / 2;
-          ctx.fillStyle = '#38bdf8';
+          ctx.fillStyle = isBridge ? '#ec4899' : '#38bdf8';
           ctx.font = `600 ${Math.max(9, 10 / transform.scale)}px sans-serif`;
-          ctx.fillText(e.label, midX + 6, midY);
+          ctx.fillText(isBridge ? 'cross-task bridge' : (e.label || ''), midX + 6, midY);
         }
       }
 
@@ -537,6 +552,15 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
           <strong style={{ display: 'block', fontSize: '13px', wordBreak: 'break-word', color: '#ffffff', marginBottom: '4px' }}>
             {activeSelected.label}
           </strong>
+
+          {activeSelected.task_name && (
+            <div style={{ marginBottom: '6px', fontSize: '10px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ color: '#64748b' }}>Task:</span>
+              <span style={{ fontWeight: 600, background: 'rgba(56, 189, 248, 0.1)', padding: '1px 5px', borderRadius: '3px' }}>
+                {activeSelected.task_name}
+              </span>
+            </div>
+          )}
 
           {activeSelected.description && (
             <p style={{ margin: '0 0 8px 0', fontSize: '10px', color: '#94a3b8', lineHeight: 1.4 }}>

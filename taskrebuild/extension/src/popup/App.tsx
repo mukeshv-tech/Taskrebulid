@@ -903,6 +903,8 @@ const App: React.FC = () => {
       
       <KnowledgeTab />
 
+      <GraphTab />
+
       <div className="tasks-section">
         <h3>My Tasks</h3>
         <ul className="task-list">

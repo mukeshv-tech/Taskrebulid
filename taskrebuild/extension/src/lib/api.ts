@@ -88,6 +88,7 @@ export const getTaskAIAnalyses = (taskId: string) => fetchApi(`/api/tasks/${task
 export const deleteTaskAIAnalysis = (taskId: string) => fetchApi(`/api/tasks/${taskId}/ai/analyses`, { method: 'DELETE' });
 
 export const getTaskGraph = (taskId: string) => fetchApi(`/api/tasks/${taskId}/graph`);
+export const getGlobalGraph = () => fetchApi('/api/graph/global');
 export const analyzeTaskGraph = (taskId: string) => fetchApi(`/api/tasks/${taskId}/graph/analyze`, { method: 'POST' });
 export const deleteGraphNode = (taskId: string, nodeId: string) => fetchApi(`/api/tasks/${taskId}/graph/nodes/${nodeId}`, { method: 'DELETE' });
 export const deleteGraphEdge = (taskId: string, edgeId: string) => fetchApi(`/api/tasks/${taskId}/graph/edges/${edgeId}`, { method: 'DELETE' });
