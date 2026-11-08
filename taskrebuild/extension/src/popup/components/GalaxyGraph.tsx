@@ -5,6 +5,9 @@ export interface GalaxyNode {
   label: string;
   node_type: 'task' | 'resource' | 'activity' | 'concept';
   clusterIndex?: number;
+  description?: string;
+  confidence?: number;
+  is_ai_generated?: boolean;
   // Simulation physics properties
   x: number;
   y: number;
@@ -18,6 +21,7 @@ export interface GalaxyEdge {
   source: string;
   target: string;
   label?: string;
+  is_rejected?: boolean;
 }
 
 interface GalaxyGraphProps {
@@ -25,7 +29,13 @@ interface GalaxyGraphProps {
   edges: GalaxyEdge[];
   clusters: any[];
   colorByCluster: boolean;
-  onSelectNode?: (node: GalaxyNode) => void;
+  searchQuery?: string;
+  filterType?: string;
+  selectedNodeId?: string | null;
+  onSelectNode?: (node: GalaxyNode | null) => void;
+  onDeleteNode?: (nodeId: string) => void;
+  onRejectEdge?: (edgeId: string) => void;
+  onDeleteEdge?: (edgeId: string) => void;
 }
 
 const CLUSTER_COLORS = [
@@ -37,11 +47,11 @@ const CLUSTER_COLORS = [
   '#06b6d4', // cyan
 ];
 
-const TYPE_COLORS: Record<string, { fill: string; stroke: string }> = {
-  task: { fill: '#7c3aed', stroke: '#a78bfa' },
-  resource: { fill: '#2563eb', stroke: '#60a5fa' },
-  activity: { fill: '#059669', stroke: '#34d399' },
-  concept: { fill: '#db2777', stroke: '#f472b6' }
+const TYPE_COLORS: Record<string, { fill: string; stroke: string; label: string }> = {
+  task: { fill: '#7c3aed', stroke: '#a78bfa', label: 'Task' },
+  resource: { fill: '#2563eb', stroke: '#60a5fa', label: 'Resource' },
+  activity: { fill: '#059669', stroke: '#34d399', label: 'Activity' },
+  concept: { fill: '#db2777', stroke: '#f472b6', label: 'Concept' }
 };
 
 export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
@@ -49,23 +59,41 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
   edges,
   clusters,
   colorByCluster,
-  onSelectNode
+  searchQuery = '',
+  filterType = 'all',
+  selectedNodeId,
+  onSelectNode,
+  onDeleteNode,
+  onRejectEdge,
+  onDeleteEdge
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Pan & Zoom Camera Transform
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [hoveredNode, setHoveredNode] = useState<GalaxyNode | null>(null);
-  const [selectedNode, setSelectedNode] = useState<GalaxyNode | null>(null);
+  const [internalSelectedNode, setInternalSelectedNode] = useState<GalaxyNode | null>(null);
 
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const draggedNodeRef = useRef<GalaxyNode | null>(null);
+  const alphaRef = useRef(1.0); // Simulation energy for smooth cooling
+
+  // Sync external selectedNodeId if supplied
+  useEffect(() => {
+    if (selectedNodeId) {
+      const match = initialNodes.find((n) => n.id === selectedNodeId);
+      if (match) setInternalSelectedNode(match);
+    } else if (selectedNodeId === null) {
+      setInternalSelectedNode(null);
+    }
+  }, [selectedNodeId, initialNodes]);
+
+  const activeSelected = internalSelectedNode;
 
   // Initialize simulation nodes with positions in galaxy spiral
   const simNodes = useMemo(() => {
     return initialNodes.map((n, i) => {
-      // Find cluster index
       let cIndex = -1;
       if (clusters.length > 0) {
         cIndex = clusters.findIndex((c) => {
@@ -74,9 +102,8 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
         });
       }
 
-      // Initial spiral distribution
       const angle = i * 0.75;
-      const dist = 30 + i * 18;
+      const dist = 35 + i * 18;
       const x = n.node_type === 'task' ? 0 : Math.cos(angle) * dist;
       const y = n.node_type === 'task' ? 0 : Math.sin(angle) * dist;
 
@@ -96,9 +123,17 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
   const nodesRef = useRef<GalaxyNode[]>(simNodes);
   useEffect(() => {
     nodesRef.current = simNodes;
+    alphaRef.current = 1.0; // Re-energize simulation when nodes change
   }, [simNodes]);
 
-  // Force-Directed Physics Engine Loop
+  // Re-energize when user drags or searches
+  const reEnergize = () => {
+    if (alphaRef.current < 0.2) {
+      alphaRef.current = 0.45;
+    }
+  };
+
+  // Force-Directed Physics Engine Loop with Energy Decay (Cooling)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -111,76 +146,85 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
       const nodes = nodesRef.current;
       const width = canvas.width;
       const height = canvas.height;
+      const currentAlpha = alphaRef.current;
 
-      // 1. Repulsion force between all node pairs (Coulomb's Law)
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const a = nodes[i];
-          const b = nodes[j];
-          const dx = b.x - a.x;
-          const dy = b.y - a.y;
-          const distSq = dx * dx + dy * dy || 1;
-          const dist = Math.sqrt(distSq);
+      // Only calculate physics while simulation has energy (prevents permanent jitter)
+      if (currentAlpha > 0.003 || draggedNodeRef.current) {
+        // 1. Repulsion force between all node pairs
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const a = nodes[i];
+            const b = nodes[j];
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const distSq = dx * dx + dy * dy || 1;
+            const dist = Math.sqrt(distSq);
 
-          if (dist < 280) {
-            const force = 320 / distSq;
-            const fx = (dx / dist) * force;
-            const fy = (dy / dist) * force;
+            if (dist < 260) {
+              const force = (300 / distSq) * currentAlpha;
+              const fx = (dx / dist) * force;
+              const fy = (dy / dist) * force;
 
-            if (a !== draggedNodeRef.current) {
-              a.vx -= fx;
-              a.vy -= fy;
-            }
-            if (b !== draggedNodeRef.current) {
-              b.vx += fx;
-              b.vy += fy;
+              if (a !== draggedNodeRef.current) {
+                a.vx -= fx;
+                a.vy -= fy;
+              }
+              if (b !== draggedNodeRef.current) {
+                b.vx += fx;
+                b.vy += fy;
+              }
             }
           }
         }
-      }
 
-      // 2. Spring attraction force along edges (Hooke's Law)
-      for (const e of edges) {
-        const source = nodes.find((n) => n.id === e.source);
-        const target = nodes.find((n) => n.id === e.target);
-        if (source && target) {
-          const dx = target.x - source.x;
-          const dy = target.y - source.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const desired = 85;
-          const spring = (dist - desired) * 0.035;
+        // 2. Spring attraction force along edges
+        for (const e of edges) {
+          const source = nodes.find((n) => n.id === e.source);
+          const target = nodes.find((n) => n.id === e.target);
+          if (source && target) {
+            const dx = target.x - source.x;
+            const dy = target.y - source.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            const desired = 80;
+            const spring = (dist - desired) * 0.03 * currentAlpha;
 
-          const fx = (dx / dist) * spring;
-          const fy = (dy / dist) * spring;
+            const fx = (dx / dist) * spring;
+            const fy = (dy / dist) * spring;
 
-          if (source !== draggedNodeRef.current) {
-            source.vx += fx;
-            source.vy += fy;
+            if (source !== draggedNodeRef.current) {
+              source.vx += fx;
+              source.vy += fy;
+            }
+            if (target !== draggedNodeRef.current) {
+              target.vx -= fx;
+              target.vy -= fy;
+            }
           }
-          if (target !== draggedNodeRef.current) {
-            target.vx -= fx;
-            target.vy -= fy;
-          }
+        }
+
+        // 3. Central gravity and dampening
+        for (const node of nodes) {
+          if (node === draggedNodeRef.current) continue;
+
+          // Pull toward center
+          node.vx -= node.x * 0.007 * currentAlpha;
+          node.vy -= node.y * 0.007 * currentAlpha;
+
+          // Velocity dampening
+          node.vx *= 0.86;
+          node.vy *= 0.86;
+
+          node.x += node.vx;
+          node.y += node.vy;
+        }
+
+        // Decay simulation energy gradually
+        if (!draggedNodeRef.current) {
+          alphaRef.current *= 0.985;
         }
       }
 
-      // 3. Central gravity and dampening
-      for (const node of nodes) {
-        if (node === draggedNodeRef.current) continue;
-
-        // Weak pull toward center
-        node.vx -= node.x * 0.008;
-        node.vy -= node.y * 0.008;
-
-        // Friction dampening
-        node.vx *= 0.88;
-        node.vy *= 0.88;
-
-        node.x += node.vx;
-        node.y += node.vy;
-      }
-
-      // 4. Render Galaxy
+      // 4. Render Canvas Frame
       ctx.clearRect(0, 0, width, height);
 
       // Deep space cosmic gradient
@@ -191,11 +235,10 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
       ctx.fillRect(0, 0, width, height);
 
       ctx.save();
-      // Apply Camera Transform
       ctx.translate(width / 2 + transform.x, height / 2 + transform.y);
       ctx.scale(transform.scale, transform.scale);
 
-      // Render Ambient Grid / Constellation Rings
+      // Constellation Guide Rings
       ctx.strokeStyle = 'rgba(51, 65, 85, 0.2)';
       ctx.lineWidth = 1 / transform.scale;
       ctx.beginPath();
@@ -204,47 +247,63 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
       ctx.arc(0, 0, 260, 0, Math.PI * 2);
       ctx.stroke();
 
+      const normalizedSearch = searchQuery.trim().toLowerCase();
+
+      // Helper to check visibility based on search & filter
+      const isNodeVisible = (node: GalaxyNode) => {
+        if (filterType !== 'all' && node.node_type !== filterType) return false;
+        if (normalizedSearch && !node.label.toLowerCase().includes(normalizedSearch)) return false;
+        return true;
+      };
+
       // Render Edges
       for (const e of edges) {
         const source = nodes.find((n) => n.id === e.source);
         const target = nodes.find((n) => n.id === e.target);
         if (!source || !target) continue;
 
+        const sourceVisible = isNodeVisible(source);
+        const targetVisible = isNodeVisible(target);
+
         const isHighlighted =
           (hoveredNode && (source.id === hoveredNode.id || target.id === hoveredNode.id)) ||
-          (selectedNode && (source.id === selectedNode.id || target.id === selectedNode.id));
+          (activeSelected && (source.id === activeSelected.id || target.id === activeSelected.id));
+
+        const baseAlpha = (!sourceVisible || !targetVisible) ? 0.08 : (isHighlighted ? 0.9 : 0.4);
 
         ctx.beginPath();
         ctx.moveTo(source.x, source.y);
         ctx.lineTo(target.x, target.y);
-        ctx.strokeStyle = isHighlighted ? 'rgba(56, 189, 248, 0.9)' : 'rgba(71, 85, 105, 0.45)';
+        ctx.strokeStyle = isHighlighted ? 'rgba(56, 189, 248, 0.95)' : `rgba(71, 85, 105, ${baseAlpha})`;
         ctx.lineWidth = (isHighlighted ? 2.5 : 1) / transform.scale;
         ctx.stroke();
 
-        // Edge label on highlight
+        // Edge label on hover or select
         if (isHighlighted && e.label) {
           const midX = (source.x + target.x) / 2;
           const midY = (source.y + target.y) / 2;
-          ctx.fillStyle = '#94a3b8';
-          ctx.font = `${Math.max(9, 10 / transform.scale)}px sans-serif`;
-          ctx.fillText(e.label, midX + 5, midY);
+          ctx.fillStyle = '#38bdf8';
+          ctx.font = `600 ${Math.max(9, 10 / transform.scale)}px sans-serif`;
+          ctx.fillText(e.label, midX + 6, midY);
         }
       }
 
-      // Render Nodes (Stars/Orbs with Cosmic Glow)
+      // Render Nodes
       for (const node of nodes) {
         const isHovered = hoveredNode?.id === node.id;
-        const isSelected = selectedNode?.id === node.id;
+        const isSelected = activeSelected?.id === node.id;
+        const isMatch = isNodeVisible(node);
 
-        // Color determination
         let baseColor = TYPE_COLORS[node.node_type] || TYPE_COLORS.concept;
         if (colorByCluster && node.clusterIndex !== undefined) {
           const hex = CLUSTER_COLORS[node.clusterIndex % CLUSTER_COLORS.length];
-          baseColor = { fill: hex, stroke: hex };
+          baseColor = { fill: hex, stroke: hex, label: `Cluster ${node.clusterIndex + 1}` };
         }
 
+        ctx.globalAlpha = isMatch ? 1 : 0.15;
+
         // Outer glow
-        const glowRadius = (node.radius + (isHovered || isSelected ? 8 : 4));
+        const glowRadius = node.radius + (isHovered || isSelected ? 9 : 4);
         const glow = ctx.createRadialGradient(node.x, node.y, node.radius * 0.3, node.x, node.y, glowRadius);
         glow.addColorStop(0, baseColor.stroke);
         glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
@@ -262,24 +321,24 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
         ctx.strokeStyle = isHovered || isSelected ? '#ffffff' : baseColor.stroke;
         ctx.stroke();
 
-        // Text Label
-        ctx.fillStyle = isHovered || isSelected ? '#ffffff' : '#cbd5e1';
+        // Label text
+        ctx.fillStyle = isHovered || isSelected ? '#ffffff' : (isMatch ? '#cbd5e1' : '#64748b');
         ctx.font = `${node.node_type === 'task' ? 'bold ' : ''}${Math.max(9, 11 / transform.scale)}px sans-serif`;
         ctx.textAlign = 'center';
         const displayLabel = node.label.length > 20 ? node.label.substring(0, 18) + '...' : node.label;
         ctx.fillText(displayLabel, node.x, node.y + node.radius + 12);
+        ctx.globalAlpha = 1.0;
       }
 
       ctx.restore();
-
       animId = requestAnimationFrame(tick);
     };
 
     animId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(animId);
-  }, [edges, transform, hoveredNode, selectedNode, colorByCluster]);
+  }, [edges, transform, hoveredNode, activeSelected, colorByCluster, searchQuery, filterType]);
 
-  // Non-passive wheel listener for smooth zooming without browser passive warnings
+  // Zoom with wheel
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -289,7 +348,7 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
       const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
       setTransform((prev) => ({
         ...prev,
-        scale: Math.max(0.4, Math.min(3.5, prev.scale * zoomFactor))
+        scale: Math.max(0.35, Math.min(3.5, prev.scale * zoomFactor))
       }));
     };
 
@@ -312,19 +371,19 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
     return { x: simX, y: simY };
   };
 
-  // Mouse Handlers for Dragging & Camera Controls
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const coords = getSimCoords(e);
     const clickedNode = nodesRef.current.find((n) => {
       const dx = n.x - coords.x;
       const dy = n.y - coords.y;
-      return Math.sqrt(dx * dx + dy * dy) <= n.radius + 4;
+      return Math.sqrt(dx * dx + dy * dy) <= n.radius + 5;
     });
 
     if (clickedNode) {
       draggedNodeRef.current = clickedNode;
-      setSelectedNode(clickedNode);
+      setInternalSelectedNode(clickedNode);
       if (onSelectNode) onSelectNode(clickedNode);
+      reEnergize();
     } else {
       isDraggingRef.current = true;
       dragStartRef.current = { x: e.clientX - transform.x, y: e.clientY - transform.y };
@@ -339,6 +398,7 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
       draggedNodeRef.current.y = coords.y;
       draggedNodeRef.current.vx = 0;
       draggedNodeRef.current.vy = 0;
+      reEnergize();
       return;
     }
 
@@ -351,11 +411,10 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
       return;
     }
 
-    // Hover detection
     const found = nodesRef.current.find((n) => {
       const dx = n.x - coords.x;
       const dy = n.y - coords.y;
-      return Math.sqrt(dx * dx + dy * dy) <= n.radius + 4;
+      return Math.sqrt(dx * dx + dy * dy) <= n.radius + 5;
     });
     setHoveredNode(found || null);
   };
@@ -365,12 +424,18 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
     draggedNodeRef.current = null;
   };
 
+  // Connected edges for selected node
+  const connectedEdges = useMemo(() => {
+    if (!activeSelected) return [];
+    return edges.filter((e) => e.source === activeSelected.id || e.target === activeSelected.id);
+  }, [activeSelected, edges]);
+
   return (
-    <div style={{ position: 'relative', width: '100%', height: '360px', overflow: 'hidden', borderRadius: '8px' }}>
+    <div style={{ position: 'relative', width: '100%', height: '380px', overflow: 'hidden', borderRadius: '8px' }}>
       <canvas
         ref={canvasRef}
-        width={480}
-        height={360}
+        width={500}
+        height={380}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -390,68 +455,204 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
           bottom: '10px',
           right: '10px',
           display: 'flex',
-          gap: '6px',
-          background: 'rgba(15, 23, 42, 0.75)',
-          padding: '4px 8px',
+          gap: '4px',
+          background: 'rgba(15, 23, 42, 0.85)',
+          padding: '3px 6px',
           borderRadius: '6px',
-          border: '1px solid #334155'
+          border: '1px solid #334155',
+          zIndex: 5
         }}
       >
         <button
           onClick={() => setTransform((prev) => ({ ...prev, scale: Math.min(3.5, prev.scale * 1.2) }))}
-          style={{ background: 'none', border: 'none', color: '#f8fafc', cursor: 'pointer', fontSize: '13px' }}
+          style={{ background: 'none', border: 'none', color: '#f8fafc', cursor: 'pointer', fontSize: '13px', padding: '2px 5px' }}
           title="Zoom In"
         >
           +
         </button>
         <button
-          onClick={() => setTransform((prev) => ({ ...prev, scale: Math.max(0.4, prev.scale * 0.8) }))}
-          style={{ background: 'none', border: 'none', color: '#f8fafc', cursor: 'pointer', fontSize: '13px' }}
+          onClick={() => setTransform((prev) => ({ ...prev, scale: Math.max(0.35, prev.scale * 0.8) }))}
+          style={{ background: 'none', border: 'none', color: '#f8fafc', cursor: 'pointer', fontSize: '13px', padding: '2px 5px' }}
           title="Zoom Out"
         >
           -
         </button>
         <button
-          onClick={() => setTransform({ x: 0, y: 0, scale: 1 })}
-          style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '10px' }}
+          onClick={() => {
+            setTransform({ x: 0, y: 0, scale: 1 });
+            reEnergize();
+          }}
+          style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '10px', padding: '2px 5px' }}
           title="Reset View"
         >
           Reset
         </button>
       </div>
 
-      {/* Node Details Inspection Badge */}
-      {selectedNode && (
+      {/* Node Inspector Side Panel */}
+      {activeSelected && (
         <div
           style={{
             position: 'absolute',
             top: '10px',
             left: '10px',
-            background: 'rgba(15, 23, 42, 0.85)',
+            width: '230px',
+            maxHeight: '340px',
+            background: 'rgba(15, 23, 42, 0.94)',
             border: '1px solid #334155',
             borderRadius: '6px',
-            padding: '8px 12px',
+            padding: '10px',
             color: '#f8fafc',
             fontSize: '11px',
-            maxWidth: '220px',
-            backdropFilter: 'blur(4px)'
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(8px)',
+            overflowY: 'auto',
+            zIndex: 10
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-            <span style={{ textTransform: 'uppercase', fontSize: '9px', fontWeight: 700, color: '#38bdf8' }}>
-              {selectedNode.node_type}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <span
+              style={{
+                textTransform: 'uppercase',
+                fontSize: '9px',
+                fontWeight: 700,
+                color: (TYPE_COLORS[activeSelected.node_type] || TYPE_COLORS.concept).stroke,
+                letterSpacing: '0.5px'
+              }}
+            >
+              {activeSelected.node_type}
             </span>
             <button
-              onClick={() => setSelectedNode(null)}
-              style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '12px' }}
+              onClick={() => {
+                setInternalSelectedNode(null);
+                if (onSelectNode) onSelectNode(null);
+              }}
+              style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '14px', lineHeight: 1 }}
+              title="Close panel"
             >
               &times;
             </button>
           </div>
-          <strong style={{ display: 'block', fontSize: '12px' }}>{selectedNode.label}</strong>
-          {selectedNode.clusterIndex !== undefined && (
-            <div style={{ marginTop: '4px', fontSize: '10px', color: CLUSTER_COLORS[selectedNode.clusterIndex % CLUSTER_COLORS.length] }}>
-              ● Cluster {selectedNode.clusterIndex + 1}
+
+          <strong style={{ display: 'block', fontSize: '13px', wordBreak: 'break-word', color: '#ffffff', marginBottom: '4px' }}>
+            {activeSelected.label}
+          </strong>
+
+          {activeSelected.description && (
+            <p style={{ margin: '0 0 8px 0', fontSize: '10px', color: '#94a3b8', lineHeight: 1.4 }}>
+              {activeSelected.description}
+            </p>
+          )}
+
+          {activeSelected.clusterIndex !== undefined && (
+            <div
+              style={{
+                marginBottom: '8px',
+                fontSize: '10px',
+                display: 'inline-block',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                background: 'rgba(30, 41, 59, 0.8)',
+                color: CLUSTER_COLORS[activeSelected.clusterIndex % CLUSTER_COLORS.length],
+                fontWeight: 600
+              }}
+            >
+              ● Cluster {activeSelected.clusterIndex + 1}
+            </div>
+          )}
+
+          {/* Connected Relationships */}
+          <div style={{ marginTop: '8px', borderTop: '1px solid #334155', paddingTop: '6px' }}>
+            <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>CONNECTIONS ({connectedEdges.length})</span>
+            {connectedEdges.length === 0 ? (
+              <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '10px' }}>No direct connections</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+                {connectedEdges.map((e) => {
+                  const isSource = e.source === activeSelected.id;
+                  const otherId = isSource ? e.target : e.source;
+                  const otherNode = nodesRef.current.find((n) => n.id === otherId);
+                  const otherLabel = otherNode ? otherNode.label : otherId;
+
+                  return (
+                    <div
+                      key={e.id}
+                      style={{
+                        padding: '4px 6px',
+                        background: '#1e293b',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
+                        <span style={{ color: '#38bdf8', fontSize: '9px', display: 'block' }}>
+                          {isSource ? '→ ' : '← '} {e.label || 'connected to'}
+                        </span>
+                        <span style={{ color: '#e2e8f0', fontSize: '10px' }}>{otherLabel}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '2px' }}>
+                        {onRejectEdge && (
+                          <button
+                            onClick={() => onRejectEdge(e.id)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#f59e0b',
+                              fontSize: '10px',
+                              cursor: 'pointer',
+                              padding: '1px 3px'
+                            }}
+                            title="Reject connection"
+                          >
+                            ⊘
+                          </button>
+                        )}
+                        {onDeleteEdge && (
+                          <button
+                            onClick={() => onDeleteEdge(e.id)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#ef4444',
+                              fontSize: '11px',
+                              cursor: 'pointer',
+                              padding: '1px 3px'
+                            }}
+                            title="Delete connection"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Node Actions */}
+          {onDeleteNode && activeSelected.node_type !== 'task' && (
+            <div style={{ marginTop: '10px', borderTop: '1px solid #334155', paddingTop: '6px' }}>
+              <button
+                onClick={() => onDeleteNode(activeSelected.id)}
+                style={{
+                  width: '100%',
+                  padding: '4px',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  borderRadius: '4px',
+                  color: '#f87171',
+                  fontSize: '10px',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                Delete Node
+              </button>
             </div>
           )}
         </div>
