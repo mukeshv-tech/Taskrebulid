@@ -158,21 +158,28 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
 
     const validRawEdges = rawEdges.filter(e => !e.is_rejected);
     
-    const centerX = 200;
-    const centerY = 150;
-    const radius = 120;
-    const angleStep = (2 * Math.PI) / (rawNodes.length - 1 || 1);
-    
-    let currentAngle = 0;
+    const centerX = 240;
+    const centerY = 180;
+    const count = rawNodes.length;
 
-    const flowNodes = rawNodes.map((n) => {
+    // Use hierarchical / tiered circular positioning to prevent nodes from overlapping
+    const flowNodes = rawNodes.map((n, i) => {
       let x = centerX;
       let y = centerY;
       
-      if (n.node_type !== 'task') {
-        x = centerX + radius * Math.cos(currentAngle);
-        y = centerY + radius * Math.sin(currentAngle);
-        currentAngle += angleStep;
+      if (count === 1) {
+        x = centerX;
+        y = centerY;
+      } else if (n.node_type === 'task') {
+        x = centerX;
+        y = 50;
+      } else {
+        const nonTaskIndex = n.node_type === 'task' ? 0 : i;
+        const tier = nonTaskIndex % 2 === 0 ? 0 : 1;
+        const currentRadius = tier === 0 ? 150 : 210;
+        const angle = (2 * Math.PI * nonTaskIndex) / Math.max(1, count - (rawNodes.some(x => x.node_type === 'task') ? 1 : 0));
+        x = centerX + Math.cos(angle) * currentRadius - 70;
+        y = centerY + Math.sin(angle) * (currentRadius * 0.75) - 30;
       }
 
       const bg = '#1e1e1e';
@@ -202,9 +209,11 @@ const GraphTab: React.FC<GraphTabProps> = ({ taskId }) => {
           color: '#fff',
           border: `2px solid ${border}`,
           borderRadius: n.node_type === 'task' ? '20px' : '8px',
-          padding: '6px 10px',
-          fontSize: '10px',
-          width: 120,
+          padding: '8px 12px',
+          fontSize: '11px',
+          lineHeight: '1.3',
+          wordBreak: 'break-word',
+          width: 140,
           boxShadow: `0 0 10px ${border}40`,
         },
       };

@@ -105,8 +105,8 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
         });
       }
 
-      const angle = i * 0.75;
-      const dist = 35 + i * 18;
+      const angle = (i * 2.4);
+      const dist = 70 + (i * 28);
       const x = n.node_type === 'task' ? 0 : Math.cos(angle) * dist;
       const y = n.node_type === 'task' ? 0 : Math.sin(angle) * dist;
 
@@ -163,8 +163,10 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
             const distSq = dx * dx + dy * dy || 1;
             const dist = Math.sqrt(distSq);
 
-            if (dist < 260) {
-              const force = (300 / distSq) * currentAlpha;
+            if (dist < 320) {
+              const minAllowedDist = a.radius + b.radius + 50;
+              const repelStrength = dist < minAllowedDist ? 1400 : 500;
+              const force = (repelStrength / distSq) * currentAlpha;
               const fx = (dx / dist) * force;
               const fy = (dy / dist) * force;
 
@@ -188,8 +190,8 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
             const dx = target.x - source.x;
             const dy = target.y - source.y;
             const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-            const desired = 80;
-            const spring = (dist - desired) * 0.03 * currentAlpha;
+            const desired = 120;
+            const spring = (dist - desired) * 0.02 * currentAlpha;
 
             const fx = (dx / dist) * spring;
             const fy = (dy / dist) * spring;
@@ -340,8 +342,22 @@ export const GalaxyGraph: React.FC<GalaxyGraphProps> = ({
         ctx.fillStyle = isHovered || isSelected ? '#ffffff' : (isMatch ? '#cbd5e1' : '#64748b');
         ctx.font = `${node.node_type === 'task' ? 'bold ' : ''}${Math.max(9, 11 / transform.scale)}px sans-serif`;
         ctx.textAlign = 'center';
-        const displayLabel = node.label.length > 20 ? node.label.substring(0, 18) + '...' : node.label;
-        ctx.fillText(displayLabel, node.x, node.y + node.radius + 12);
+        
+        // Truncate cleanly and draw multi-line or clean badge for readability
+        const maxLen = isHovered || isSelected ? 30 : 16;
+        const displayLabel = node.label.length > maxLen ? node.label.substring(0, maxLen - 2) + '...' : node.label;
+        
+        // Semi-transparent label background pill for anti-collision readability
+        const textMetrics = ctx.measureText(displayLabel);
+        const textWidth = textMetrics.width;
+        const textHeight = 13;
+        const labelY = node.y + node.radius + 12;
+        
+        ctx.fillStyle = 'rgba(10, 13, 20, 0.75)';
+        ctx.fillRect(node.x - textWidth / 2 - 4, labelY - 10, textWidth + 8, textHeight + 2);
+        
+        ctx.fillStyle = isHovered || isSelected ? '#ffffff' : (isMatch ? '#e2e8f0' : '#64748b');
+        ctx.fillText(displayLabel, node.x, labelY);
         ctx.globalAlpha = 1.0;
       }
 

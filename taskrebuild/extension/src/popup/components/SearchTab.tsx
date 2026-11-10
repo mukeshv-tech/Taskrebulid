@@ -153,10 +153,11 @@ const SearchTab: React.FC<SearchProps> = ({ taskId, onNavigateToTask }) => {
         </form>
         {showSuggestions && suggestions.length > 0 && (
           <ul style={{ 
-            position: 'absolute', top: '100%', left: 0, right: '70px', 
+            position: 'absolute', top: '100%', left: 0, right: 0, 
             background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', 
             listStyle: 'none', padding: 0, margin: '4px 0 0 0', 
-            boxShadow: '0 4px 12px var(--shadow-color)', zIndex: 50 
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)', zIndex: 100,
+            maxHeight: '220px', overflowY: 'auto'
           }}>
             {suggestions.map((sug, idx) => (
               <li 
@@ -166,7 +167,17 @@ const SearchTab: React.FC<SearchProps> = ({ taskId, onNavigateToTask }) => {
                   setQuery(sug);
                   setShowSuggestions(false);
                 }}
-                style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', color: 'var(--text-primary)', borderBottom: idx === suggestions.length - 1 ? 'none' : '1px solid var(--border-subtle)' }}
+                style={{
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  lineHeight: '1.4',
+                  cursor: 'pointer',
+                  color: 'var(--text-primary)',
+                  borderBottom: idx === suggestions.length - 1 ? 'none' : '1px solid var(--border-subtle)',
+                  whiteSpace: 'normal',
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word'
+                }}
                 onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-card-hover)'}
                 onMouseLeave={(e) => e.currentTarget.style.background = 'var(--bg-card)'}
               >
